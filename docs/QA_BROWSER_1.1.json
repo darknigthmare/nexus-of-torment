@@ -1,0 +1,39 @@
+{
+  "build": "1.1.0",
+  "date": "2026-08-11",
+  "browser": "Chromium 144",
+  "viewport": [1280, 720],
+  "webgl": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+  "method": "Les fichiers locaux exacts ont été injectés dans un document Chromium vierge, car la politique administrateur de l’environnement interdit toute navigation HTTP et file://. Le serveur local a été validé séparément par tools/http-smoke.mjs.",
+  "menu": {
+    "state": "menu",
+    "webglContext": true,
+    "fallbackHidden": true,
+    "menuVisible": true,
+    "weapons": 6,
+    "enemyCastes": 11,
+    "stations": 7
+  },
+  "gameplayScenario": {
+    "vesperDamage": 134.64,
+    "vesperPullDistance": 0.91,
+    "vesperSlowDuration": 1.65,
+    "sanctificateurBurnDuration": 2.25,
+    "sanctificateurBurnDps": 35.2,
+    "meleeDamage": 67,
+    "meleeStunDuration": 0.62,
+    "wave5Boss": "gatekeeper",
+    "wave10Boss": "archdeacon",
+    "archdeaconVisualParts": 22
+  },
+  "render": {
+    "state": "playing",
+    "bossHudVisible": true,
+    "weaponHud": "SANCTIFICATEUR",
+    "aliveEnemies": 3,
+    "drawCalls": 376,
+    "triangles": 12146,
+    "canvas": [1280, 720]
+  },
+  "javascriptErrors": []
+}
