@@ -1,6 +1,6 @@
 # Audit produit — NEXUS OF TORMENT
 
-31 août 2026 · Édition 1.2.0 « Liturgie nerveuse »
+31 août 2026 · Édition 1.2.1 « Liturgie nerveuse »
 
 ## Conclusion et périmètre
 
@@ -69,6 +69,25 @@ L’import demande confirmation, se limite au menu, refuse les identifiants hér
 | P2 | Éclairage et slam peu cohérents avec le secteur/rayon | Trois lumières propres à chaque secteur dans le budget de quatre, cercle d’impact préalable exact |
 | P2 | Interruption accidentelle ou information insuffisante | Confirmations, briefing, guidage, greffes sans chrono et export du dossier |
 | P2 | Écran-titre sans illustration dédiée | Création originale OpenAI embarquée et précachée, [provenance et prompt](ASSET_PROVENANCE.md) |
+
+## Complément 1.2.1 : défauts reproduits puis corrigés
+
+| Priorité | Écart | Vérification |
+|---|---|---|
+| P1 | Un réglage enregistré depuis un onglet périmé remplace la carrière plus récente | Garde de révision, vrai événement storage de deux pages Chrome, brouillon exporté et reload confirmé |
+| P1 | Une ancienne application rétrograde un format futur | Version future en lecture seule, export original exact, données et secours inchangés |
+| P1 | Cache incomplet durablement bloqué malgré un retour en ligne | Réparation atomique du shell avec SRI, fichier altéré refusé puis récupération réelle dans Chrome |
+| P1 | Touches collées ou clic de menu réutilisé au combat ; FEU perdu au premier doigt relâché | Entrées filtrées/libérées, propriété des pointeurs tactiles et 87 contrats |
+| P1 | Trois charges frappent à travers les couverts ; slam indépendant de la difficulté | Même test de couvert que la mêlée, facteur calibré difficulté/vague ; 33 nouveaux contrats gameplay |
+| P2 | Achats de soins/réserves sans bénéfice et orientation de reprise saturée | Refus sans débit/cooldown, prompt cohérent, angle normalisé |
+| P2 | Commandes fixes et indications incohérentes après changement | Vingt actions configurables, collisions refusées, HUD/briefing actualisés et vraie entrée clavier Chrome |
+| P2 | Installation PWA opaque et erreur brute en anglais | Statut lisible, disponibilité distincte d’installation, explication française après inspection des captures |
+
+![Commandes desktop](screenshots/v1.2-bindings.png)
+
+![Dossier protégé](screenshots/v1.2-storage-conflict.png)
+
+Le menu d’origine et l’illustration OpenAI sont conservés. Aucune nouvelle image n’était nécessaire pour corriger ces écarts. Les neuf suites totalisent 461 contrôles ; les 97 vérifications Chrome locales comprennent desktop, tactile émulé, récupération et hors-ligne. Les limites interprocessus du stockage et l’absence de validation physique/humaine restent explicites dans le rapport QA.
 
 ## Équilibrage et longévité
 

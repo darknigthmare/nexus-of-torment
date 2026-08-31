@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "product": "NEXUS OF TORMENT — Liturgie nerveuse",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "target": "local-build",
-  "executedAt": "2026-08-31T18:42:19.374Z",
-  "url": "http://127.0.0.1:61505/",
+  "executedAt": "2026-08-31T19:32:57.747Z",
+  "url": "http://127.0.0.1:52417/",
   "browser": {
     "engine": "Chromium",
     "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -43,13 +43,13 @@
         "mode": "campaign",
         "sector": "sanctum",
         "difficulty": "unstable",
-        "cameraYaw": -0.3318635425314451,
+        "cameraYaw": -0.333476954451204,
         "webgl2": true,
         "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 243,
+        "drawCalls": 244,
         "triangles": 7816,
         "enemies": 0,
         "queued": 0
@@ -113,6 +113,279 @@
       "passed": true
     },
     {
+      "name": "Commandes desktop : vingt actions nommées et accessibles",
+      "passed": true,
+      "details": [
+        {
+          "action": "moveForward",
+          "label": "Modifier : Avancer · W / Z / ↑",
+          "text": "Avancer · W / Z / ↑"
+        },
+        {
+          "action": "moveBack",
+          "label": "Modifier : Reculer · S / ↓",
+          "text": "Reculer · S / ↓"
+        },
+        {
+          "action": "moveLeft",
+          "label": "Modifier : Aller à gauche · A / Q / ←",
+          "text": "Aller à gauche · A / Q / ←"
+        },
+        {
+          "action": "moveRight",
+          "label": "Modifier : Aller à droite · D / →",
+          "text": "Aller à droite · D / →"
+        },
+        {
+          "action": "sprint",
+          "label": "Modifier : Courir · Maj gauche / Maj droite",
+          "text": "Courir · Maj gauche / Maj droite"
+        },
+        {
+          "action": "jump",
+          "label": "Modifier : Sauter · Espace",
+          "text": "Sauter · Espace"
+        },
+        {
+          "action": "reload",
+          "label": "Modifier : Recharger · R",
+          "text": "Recharger · R"
+        },
+        {
+          "action": "grenade",
+          "label": "Modifier : Grenade · G",
+          "text": "Grenade · G"
+        },
+        {
+          "action": "ability",
+          "label": "Modifier : Capacité · C",
+          "text": "Capacité · C"
+        },
+        {
+          "action": "melee",
+          "label": "Modifier : Coup de crosse · V",
+          "text": "Coup de crosse · V"
+        },
+        {
+          "action": "interact",
+          "label": "Modifier : Interagir · E",
+          "text": "Interagir · E"
+        },
+        {
+          "action": "nextWave",
+          "label": "Modifier : Office suivant · Entrée / F",
+          "text": "Office suivant · Entrée / F"
+        },
+        {
+          "action": "weapon1",
+          "label": "Modifier : Arme 1 · 1",
+          "text": "Arme 1 · 1"
+        },
+        {
+          "action": "weapon2",
+          "label": "Modifier : Arme 2 · 2",
+          "text": "Arme 2 · 2"
+        },
+        {
+          "action": "weapon3",
+          "label": "Modifier : Arme 3 · 3",
+          "text": "Arme 3 · 3"
+        },
+        {
+          "action": "weapon4",
+          "label": "Modifier : Arme 4 · 4",
+          "text": "Arme 4 · 4"
+        },
+        {
+          "action": "weapon5",
+          "label": "Modifier : Arme 5 · 5",
+          "text": "Arme 5 · 5"
+        },
+        {
+          "action": "weapon6",
+          "label": "Modifier : Arme 6 · 6",
+          "text": "Arme 6 · 6"
+        },
+        {
+          "action": "fire",
+          "label": "Modifier : Tirer · Clic gauche",
+          "text": "Tirer · Clic gauche"
+        },
+        {
+          "action": "aim",
+          "label": "Modifier : Viser · Clic droit",
+          "text": "Viser · Clic droit"
+        }
+      ]
+    },
+    {
+      "name": "Commandes desktop : R déjà affecté refuse grenade sans mutation",
+      "passed": true,
+      "details": {
+        "status": "Conflit entre Recharger et Grenade.",
+        "capture": "grenade",
+        "bindings": "{\"moveForward\":\"\",\"moveBack\":\"\",\"moveLeft\":\"\",\"moveRight\":\"\",\"sprint\":\"\",\"jump\":\"\",\"reload\":\"\",\"grenade\":\"\",\"ability\":\"\",\"melee\":\"\",\"interact\":\"\",\"nextWave\":\"\",\"weapon1\":\"\",\"weapon2\":\"\",\"weapon3\":\"\",\"weapon4\":\"\",\"weapon5\":\"\",\"weapon6\":\"\",\"fire\":\"\",\"aim\":\"\"}"
+      }
+    },
+    {
+      "name": "Commandes desktop : Échap annule la saisie sans fermer le dialogue",
+      "passed": true,
+      "details": {
+        "capture": null,
+        "active": "bindings-screen",
+        "focus": "grenade",
+        "bindings": "{\"moveForward\":\"\",\"moveBack\":\"\",\"moveLeft\":\"\",\"moveRight\":\"\",\"sprint\":\"\",\"jump\":\"\",\"reload\":\"\",\"grenade\":\"\",\"ability\":\"\",\"melee\":\"\",\"interact\":\"\",\"nextWave\":\"\",\"weapon1\":\"\",\"weapon2\":\"\",\"weapon3\":\"\",\"weapon4\":\"\",\"weapon5\":\"\",\"weapon6\":\"\",\"fire\":\"\",\"aim\":\"\"}"
+      }
+    },
+    {
+      "name": "Commandes desktop : I avancer et T recharger enregistrés réellement",
+      "passed": true,
+      "details": {
+        "settings": {
+          "moveForward": "KeyI",
+          "moveBack": "",
+          "moveLeft": "",
+          "moveRight": "",
+          "sprint": "",
+          "jump": "",
+          "reload": "KeyT",
+          "grenade": "",
+          "ability": "",
+          "melee": "",
+          "interact": "",
+          "nextWave": "",
+          "weapon1": "",
+          "weapon2": "",
+          "weapon3": "",
+          "weapon4": "",
+          "weapon5": "",
+          "weapon6": "",
+          "fire": "",
+          "aim": ""
+        },
+        "input": {
+          "moveForward": "KeyI",
+          "moveBack": "",
+          "moveLeft": "",
+          "moveRight": "",
+          "sprint": "",
+          "jump": "",
+          "reload": "KeyT",
+          "grenade": "",
+          "ability": "",
+          "melee": "",
+          "interact": "",
+          "nextWave": "",
+          "weapon1": "",
+          "weapon2": "",
+          "weapon3": "",
+          "weapon4": "",
+          "weapon5": "",
+          "weapon6": "",
+          "fire": "",
+          "aim": ""
+        },
+        "stored": {
+          "moveForward": "KeyI",
+          "moveBack": "",
+          "moveLeft": "",
+          "moveRight": "",
+          "sprint": "",
+          "jump": "",
+          "reload": "KeyT",
+          "grenade": "",
+          "ability": "",
+          "melee": "",
+          "interact": "",
+          "nextWave": "",
+          "weapon1": "",
+          "weapon2": "",
+          "weapon3": "",
+          "weapon4": "",
+          "weapon5": "",
+          "weapon6": "",
+          "fire": "",
+          "aim": ""
+        },
+        "status": {
+          "available": true,
+          "dirty": false,
+          "recovered": false,
+          "conflict": false,
+          "futureVersion": null,
+          "error": null
+        },
+        "capture": null
+      }
+    },
+    {
+      "name": "Commandes desktop : fermeture restaure les réglages et le focus",
+      "passed": true
+    },
+    {
+      "name": "Commandes desktop : rechargement restaure les affectations persistées",
+      "passed": true,
+      "details": {
+        "settings": {
+          "moveForward": "KeyI",
+          "moveBack": "",
+          "moveLeft": "",
+          "moveRight": "",
+          "sprint": "",
+          "jump": "",
+          "reload": "KeyT",
+          "grenade": "",
+          "ability": "",
+          "melee": "",
+          "interact": "",
+          "nextWave": "",
+          "weapon1": "",
+          "weapon2": "",
+          "weapon3": "",
+          "weapon4": "",
+          "weapon5": "",
+          "weapon6": "",
+          "fire": "",
+          "aim": ""
+        },
+        "input": {
+          "moveForward": "KeyI",
+          "moveBack": "",
+          "moveLeft": "",
+          "moveRight": "",
+          "sprint": "",
+          "jump": "",
+          "reload": "KeyT",
+          "grenade": "",
+          "ability": "",
+          "melee": "",
+          "interact": "",
+          "nextWave": "",
+          "weapon1": "",
+          "weapon2": "",
+          "weapon3": "",
+          "weapon4": "",
+          "weapon5": "",
+          "weapon6": "",
+          "fire": "",
+          "aim": ""
+        },
+        "recovered": false
+      }
+    },
+    {
+      "name": "Commandes desktop : libellés restaurés après rechargement",
+      "passed": true,
+      "details": {
+        "forward": "Avancer · I",
+        "reload": "Recharger · T"
+      }
+    },
+    {
+      "name": "Commandes desktop : retour au menu sans saisie résiduelle",
+      "passed": true
+    },
+    {
       "name": "Accessibilité appliquée et focus contenu",
       "passed": true,
       "details": {
@@ -147,10 +420,10 @@
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 293,
-        "triangles": 9084,
-        "enemies": 5,
-        "queued": 6
+        "drawCalls": 285,
+        "triangles": 8920,
+        "enemies": 4,
+        "queued": 7
       }
     },
     {
@@ -168,10 +441,10 @@
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 293,
-        "triangles": 9084,
-        "enemies": 5,
-        "queued": 6
+        "drawCalls": 285,
+        "triangles": 8920,
+        "enemies": 4,
+        "queued": 7
       }
     },
     {
@@ -188,6 +461,129 @@
           "median": 30,
           "minimum": 24
         }
+      }
+    },
+    {
+      "name": "Commandes combat : scénario I/T issu du menu, office 1 actif",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 1,
+        "locked": true,
+        "forward": "KeyI",
+        "reload": "KeyT"
+      }
+    },
+    {
+      "name": "Commandes combat : vraie touche I maintient les aliases canoniques",
+      "passed": true,
+      "details": {
+        "physical": true,
+        "canonical": true,
+        "aliases": [
+          true,
+          true,
+          true
+        ],
+        "focused": "BODY"
+      }
+    },
+    {
+      "name": "Commandes combat : I déplace réellement le joueur dans la simulation",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 1,
+        "distance": 0.5309355177900237,
+        "forward": 0.5309355177900237
+      }
+    },
+    {
+      "name": "Commandes combat : relâcher I libère toutes les entrées de marche",
+      "passed": true,
+      "details": {
+        "physical": false,
+        "canonical": false
+      }
+    },
+    {
+      "name": "Commandes combat : ancien W inactif sans déplacement fantôme",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 1,
+        "physical": false,
+        "canonical": false,
+        "distance": 0
+      }
+    },
+    {
+      "name": "Commandes combat : restauration des defaults protégée par confirmation",
+      "passed": true
+    },
+    {
+      "name": "Commandes combat : defaults restaurés et persistés sans modifier le dossier",
+      "passed": true,
+      "details": {
+        "settings": {
+          "moveForward": "",
+          "moveBack": "",
+          "moveLeft": "",
+          "moveRight": "",
+          "sprint": "",
+          "jump": "",
+          "reload": "",
+          "grenade": "",
+          "ability": "",
+          "melee": "",
+          "interact": "",
+          "nextWave": "",
+          "weapon1": "",
+          "weapon2": "",
+          "weapon3": "",
+          "weapon4": "",
+          "weapon5": "",
+          "weapon6": "",
+          "fire": "",
+          "aim": ""
+        },
+        "stored": {
+          "moveForward": "",
+          "moveBack": "",
+          "moveLeft": "",
+          "moveRight": "",
+          "sprint": "",
+          "jump": "",
+          "reload": "",
+          "grenade": "",
+          "ability": "",
+          "melee": "",
+          "interact": "",
+          "nextWave": "",
+          "weapon1": "",
+          "weapon2": "",
+          "weapon3": "",
+          "weapon4": "",
+          "weapon5": "",
+          "weapon6": "",
+          "fire": "",
+          "aim": ""
+        },
+        "wave": 1,
+        "shards": 0,
+        "kills": 0
+      }
+    },
+    {
+      "name": "Commandes combat : reprise office 1 avec commandes par défaut",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 1,
+        "locked": true,
+        "nativeLock": true,
+        "pointerFixture": false,
+        "binding": ""
       }
     },
     {
@@ -403,10 +799,10 @@
       "name": "Service worker et cache installés",
       "passed": true,
       "details": {
-        "scope": "http://127.0.0.1:61505/",
+        "scope": "http://127.0.0.1:52417/",
         "controlled": true,
         "caches": [
-          "nexus-of-torment-build-b31f01ca2b6e051a0e7677955325fea9c3c2a2c80518f6e88c6593ed870f3fb8"
+          "nexus-of-torment-build-51127196b3d5da943696052baf8014fd24c554998e728ecb53ea3b982a3205a0"
         ]
       }
     },
@@ -419,7 +815,7 @@
         "mode": "campaign",
         "sector": "sanctum",
         "difficulty": "unstable",
-        "cameraYaw": -0.3092575103588301,
+        "cameraYaw": -0.3076392301614371,
         "webgl2": true,
         "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "renderScale": 1,
@@ -436,7 +832,7 @@
       "passed": true,
       "details": {
         "status": 503,
-        "text": "Ressource indisponible hors ligne. Fermez les onglets du jeu puis rouvrez-le en ligne pour actualiser son installation."
+        "text": "Ressource indisponible hors ligne ou installation incomplète. Reconnectez-vous puis réessayez. Si une nouvelle version est disponible, fermez tous les onglets du jeu avant de le rouvrir pour terminer sa mise à jour."
       }
     },
     {
@@ -472,6 +868,377 @@
       "passed": true
     },
     {
+      "name": "Commandes mobile : vingt cibles tactiles nommées d’au moins 44 px",
+      "passed": true,
+      "details": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "documentWidth": 390,
+        "shell": {
+          "left": 24,
+          "right": 390.59375,
+          "clientWidth": 365,
+          "scrollWidth": 365
+        },
+        "buttons": [
+          {
+            "action": "moveForward",
+            "label": "Modifier : Avancer · W / Z / ↑",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "moveBack",
+            "label": "Modifier : Reculer · S / ↓",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "moveLeft",
+            "label": "Modifier : Aller à gauche · A / Q / ←",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "moveRight",
+            "label": "Modifier : Aller à droite · D / →",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "sprint",
+            "label": "Modifier : Courir · Maj gauche / Maj droite",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "jump",
+            "label": "Modifier : Sauter · Espace",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "reload",
+            "label": "Modifier : Recharger · R",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "grenade",
+            "label": "Modifier : Grenade · G",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "ability",
+            "label": "Modifier : Capacité · C",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "melee",
+            "label": "Modifier : Coup de crosse · V",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "interact",
+            "label": "Modifier : Interagir · E",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "nextWave",
+            "label": "Modifier : Office suivant · Entrée / F",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon1",
+            "label": "Modifier : Arme 1 · 1",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon2",
+            "label": "Modifier : Arme 2 · 2",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon3",
+            "label": "Modifier : Arme 3 · 3",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon4",
+            "label": "Modifier : Arme 4 · 4",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon5",
+            "label": "Modifier : Arme 5 · 5",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon6",
+            "label": "Modifier : Arme 6 · 6",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "fire",
+            "label": "Modifier : Tirer · Clic gauche",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "aim",
+            "label": "Modifier : Viser · Clic droit",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          }
+        ]
+      }
+    },
+    {
+      "name": "Commandes mobile : dialogue sans débordement horizontal",
+      "passed": true,
+      "details": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "documentWidth": 390,
+        "shell": {
+          "left": 24,
+          "right": 390.59375,
+          "clientWidth": 365,
+          "scrollWidth": 365
+        },
+        "buttons": [
+          {
+            "action": "moveForward",
+            "label": "Modifier : Avancer · W / Z / ↑",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "moveBack",
+            "label": "Modifier : Reculer · S / ↓",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "moveLeft",
+            "label": "Modifier : Aller à gauche · A / Q / ←",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "moveRight",
+            "label": "Modifier : Aller à droite · D / →",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "sprint",
+            "label": "Modifier : Courir · Maj gauche / Maj droite",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "jump",
+            "label": "Modifier : Sauter · Espace",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "reload",
+            "label": "Modifier : Recharger · R",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "grenade",
+            "label": "Modifier : Grenade · G",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "ability",
+            "label": "Modifier : Capacité · C",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "melee",
+            "label": "Modifier : Coup de crosse · V",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "interact",
+            "label": "Modifier : Interagir · E",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "nextWave",
+            "label": "Modifier : Office suivant · Entrée / F",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon1",
+            "label": "Modifier : Arme 1 · 1",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon2",
+            "label": "Modifier : Arme 2 · 2",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon3",
+            "label": "Modifier : Arme 3 · 3",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon4",
+            "label": "Modifier : Arme 4 · 4",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon5",
+            "label": "Modifier : Arme 5 · 5",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "weapon6",
+            "label": "Modifier : Arme 6 · 6",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "fire",
+            "label": "Modifier : Tirer · Clic gauche",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          },
+          {
+            "action": "aim",
+            "label": "Modifier : Viser · Clic droit",
+            "width": 316.59375,
+            "height": 48,
+            "left": 49,
+            "right": 365.59375
+          }
+        ]
+      }
+    },
+    {
+      "name": "Commandes mobile : dernière action atteignable par défilement",
+      "passed": true,
+      "details": {
+        "top": 698.6875,
+        "bottom": 746.6875,
+        "viewport": 844
+      }
+    },
+    {
+      "name": "Commandes mobile : retour au dossier avec tactile indépendant",
+      "passed": true
+    },
+    {
       "name": "Run tactile lancé via UI",
       "passed": true,
       "details": {
@@ -486,10 +1253,10 @@
         "renderScale": 1,
         "buffer": "682x1477",
         "fallbackHidden": true,
-        "drawCalls": 247,
-        "triangles": 7944,
-        "enemies": 1,
-        "queued": 11
+        "drawCalls": 236,
+        "triangles": 7408,
+        "enemies": 0,
+        "queued": 12
       }
     },
     {
@@ -543,6 +1310,19 @@
     {
       "name": "Intermission lançable par bouton tactile",
       "passed": true
+    },
+    {
+      "name": "Checkpoint tactile valide sans fausse réparation",
+      "passed": true,
+      "details": {
+        "available": true,
+        "dirty": false,
+        "recovered": false,
+        "conflict": false,
+        "futureVersion": null,
+        "error": null,
+        "strictError": null
+      }
     },
     {
       "name": "Guidage objectif orienté et chiffré",
@@ -619,6 +1399,122 @@
       "passed": true
     },
     {
+      "name": "Multi-onglets : dossier initial réellement enregistré à 19 fragments",
+      "passed": true
+    },
+    {
+      "name": "Multi-onglets : deuxième page charge la même base sans conflit",
+      "passed": true,
+      "details": {
+        "shards": 19,
+        "conflict": false,
+        "blocked": false
+      }
+    },
+    {
+      "name": "Multi-onglets : vrai événement storage bloque le brouillon sans écraser 21 fragments",
+      "passed": true,
+      "details": {
+        "state": "menu",
+        "localShards": 19,
+        "diskShards": 21,
+        "alert": "DOSSIER MODIFIÉ DANS UN AUTRE ONGLET — écriture bloquée pour protéger votre progression. Réglages : exportez cette tentative ou rechargez le dossier actuel."
+      }
+    },
+    {
+      "name": "Multi-onglets : bouton de lancement refusé sans cacher le dossier",
+      "passed": true
+    },
+    {
+      "name": "Multi-onglets : réglage clavier conserve le brouillon et refuse sa persistance",
+      "passed": true,
+      "details": {
+        "shards": 19,
+        "volume": 0.65,
+        "unchangedDisk": true
+      }
+    },
+    {
+      "name": "Multi-onglets : export téléchargé contient exactement le brouillon local",
+      "passed": true,
+      "details": {
+        "filename": "nexus-dossier-2026-08-31.json",
+        "bytes": 1229
+      }
+    },
+    {
+      "name": "Multi-onglets : relecture du dossier protégée par confirmation",
+      "passed": true
+    },
+    {
+      "name": "Multi-onglets : rechargement confirmé adopte 21 fragments et lève le blocage",
+      "passed": true,
+      "details": {
+        "shards": 21,
+        "conflict": false,
+        "blocked": false,
+        "unchangedDisk": true
+      }
+    },
+    {
+      "name": "Version future : dossier 999 protégé dès le démarrage et avertissement visible",
+      "passed": true,
+      "details": {
+        "futureVersion": 999,
+        "blocked": true,
+        "backupExact": true,
+        "diskExact": true,
+        "recoveryExact": true,
+        "alert": "DOSSIER D’UNE VERSION PLUS RÉCENTE — aucune écriture autorisée. Fermez les onglets pour actualiser le jeu ; la copie originale reste exportable dans les réglages."
+      }
+    },
+    {
+      "name": "Version future : lancement UI refusé et écriture SaveStore bloquée",
+      "passed": true
+    },
+    {
+      "name": "Version future : copie originale accessible et import désactivé",
+      "passed": true
+    },
+    {
+      "name": "Version future : téléchargement de la copie originale exact octet pour octet",
+      "passed": true,
+      "details": {
+        "filename": "nexus-original-2026-08-31.json",
+        "bytes": 120
+      }
+    },
+    {
+      "name": "Version future : export et actions UI ne modifient ni dossier ni secours",
+      "passed": true
+    },
+    {
+      "name": "Cache incomplet réparé atomiquement en ligne dans Chrome",
+      "passed": true,
+      "details": {
+        "status": 200,
+        "files": 17,
+        "revision": "nexus-of-torment-build-51127196b3d5da943696052baf8014fd24c554998e728ecb53ea3b982a3205a0"
+      }
+    },
+    {
+      "name": "SRI réel refuse un module distant altéré sans cache partiel",
+      "passed": true,
+      "details": {
+        "alteredRequests": 1,
+        "status": 503,
+        "cachedFiles": 15
+      }
+    },
+    {
+      "name": "Réparation récupérable après refus d’intégrité",
+      "passed": true,
+      "details": {
+        "status": 200,
+        "count": 17
+      }
+    },
+    {
       "name": "Console et runtime sans erreur",
       "passed": true,
       "details": []
@@ -635,14 +1531,18 @@
     "save-tools": "docs/screenshots/v1.2-save-tools.png",
     "mobile-menu": "docs/screenshots/v1.2-mobile-menu.png",
     "mobile-grafts": "docs/screenshots/v1.2-mobile-grafts.png",
-    "mobile-landscape": "docs/screenshots/v1.2-mobile-landscape.png"
+    "mobile-landscape": "docs/screenshots/v1.2-mobile-landscape.png",
+    "bindings": "docs/screenshots/v1.2-bindings.png",
+    "mobile-bindings": "docs/screenshots/v1.2-mobile-bindings.png",
+    "storage-conflict": "docs/screenshots/v1.2-storage-conflict.png",
+    "future-save": "docs/screenshots/v1.2-future-save.png"
   },
-  "buildRevision": "nexus-of-torment-build-b31f01ca2b6e051a0e7677955325fea9c3c2a2c80518f6e88c6593ed870f3fb8",
+  "buildRevision": "nexus-of-torment-build-51127196b3d5da943696052baf8014fd24c554998e728ecb53ea3b982a3205a0",
   "performance": {
     "viewport": "1280x720",
     "averageFps": 60,
-    "drawCalls": 293,
-    "triangles": 9084,
+    "drawCalls": 285,
+    "triangles": 8920,
     "samples": [
       60,
       60,
@@ -656,7 +1556,13 @@
   "expectedRecoverySignals": [
     {
       "type": "recovery-console",
-      "message": "Error: Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.\n    at HTMLCanvasElement.<anonymous> (http://127.0.0.1:61505/src/main.js:56:35)",
+      "message": "Error: Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.\n    at HTMLCanvasElement.<anonymous> (http://127.0.0.1:52417/src/main.js:79:35)",
+      "expectedOffline": false,
+      "expectedRecovery": true
+    },
+    {
+      "type": "shell-repair-console",
+      "message": "Failed to load resource: the server responded with a status of 503 ()",
       "expectedOffline": false,
       "expectedRecovery": true
     }
@@ -670,7 +1576,7 @@
     }
   ],
   "summary": {
-    "passed": 60,
+    "passed": 97,
     "failed": 0
   }
 }

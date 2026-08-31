@@ -1,5 +1,7 @@
-const CACHE_VERSION = 'nexus-of-torment-v1.2.0-r2';
+const CACHE_VERSION = 'nexus-of-torment-v1.2.1-r1';
 const CACHE_PREFIX = 'nexus-of-torment-';
+// Le build remplace null par les SHA-256 des octets publiés (textes LF, binaires intacts).
+const SHELL_INTEGRITY = null;
 const APP_SHELL = [
   './',
   './index.html',
@@ -20,10 +22,21 @@ const APP_SHELL = [
   './src/main.js'
 ];
 
+function integrityRequests(signal) {
+  if (SHELL_INTEGRITY === null) return null;
+  return APP_SHELL.map(relative => {
+    const integrity = Object.hasOwn(SHELL_INTEGRITY, relative) && SHELL_INTEGRITY[relative];
+    if (typeof integrity !== 'string' || !/^sha256-[A-Za-z0-9+/]{43}=$/.test(integrity)) throw new Error('Empreinte du shell absente : ' + relative);
+    const request = new Request(new URL(relative, self.location.href), { cache:'no-store', integrity, signal });
+    if (request.integrity !== integrity) throw new Error('Vérification d’intégrité indisponible.');
+    return request;
+  });
+}
+
 self.addEventListener('install', event => {
   // Installation atomique du shell complet ; un échec laisse l’ancienne version active.
   // Pas de skipWaiting : les onglets d’une ancienne version gardent leurs modules cohérents.
-  event.waitUntil(caches.open(CACHE_VERSION).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE_VERSION).then(cache => cache.addAll(integrityRequests() || APP_SHELL)));
 });
 
 self.addEventListener('activate', event => {
@@ -34,16 +47,42 @@ self.addEventListener('activate', event => {
 });
 
 function unavailable() {
-  return new Response('Ressource indisponible hors ligne. Fermez les onglets du jeu puis rouvrez-le en ligne pour actualiser son installation.', {
+  return new Response('Ressource indisponible hors ligne ou installation incomplète. Reconnectez-vous puis réessayez. Si une nouvelle version est disponible, fermez tous les onglets du jeu avant de le rouvrir pour terminer sa mise à jour.', {
     status:503, headers:{ 'Content-Type':'text/plain; charset=utf-8' }
   });
+}
+
+let repairPromise = null;
+let repairRetryAt = 0;
+function repairShell(cache) {
+  if (repairPromise) return repairPromise;
+  if (SHELL_INTEGRITY === null || Date.now() < repairRetryAt) return Promise.resolve(false);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  repairPromise = (async () => {
+    try {
+      // addAll vérifie les SRI via Fetch avant son unique lot atomique. Un seul
+      // octet différent ou une erreur réseau laisse tout le cache précédent intact.
+      // Jamais de cache.put/fetch isolé d’un module d’une autre révision.
+      await cache.addAll(integrityRequests(controller.signal));
+      return true;
+    } catch {
+      repairRetryAt = Date.now() + 5000;
+      return false;
+    } finally {
+      clearTimeout(timeout);
+      repairPromise = null;
+    }
+  })();
+  return repairPromise;
 }
 
 async function shellResponse(request) {
   const cache = await caches.open(CACHE_VERSION);
   // HTML, styles, scripts et images proviennent TOUJOURS de la même révision installée.
   // Un fichier manquant ne doit pas être remplacé silencieusement par un module plus récent.
-  const cached = await cache.match(request, { ignoreSearch:true });
+  let cached = await cache.match(request, { ignoreSearch:true });
+  if (!cached && await repairShell(cache)) cached = await cache.match(request, { ignoreSearch:true });
   // cleanUrls peut rediriger index.html vers /. Une réponse marquée redirected
   // est refusée pour certaines navigations interceptées (ERR_FAILED dans Chrome).
   // Garder ses octets/headers, mais reconstruire une réponse locale non redirigée.

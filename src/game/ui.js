@@ -17,6 +17,7 @@
       this.victoryScreen = this.$('victory-screen');
       this.codexScreen = this.$('codex-screen');
       this.settingsScreen = this.$('settings-screen');
+      this.bindingsScreen = this.$('bindings-screen');
       this.creditsScreen = this.$('credits-screen');
       this.briefingScreen = this.$('briefing-screen');
       this.confirmScreen = this.$('confirm-screen');
@@ -48,6 +49,9 @@
       this.lastFocused = null;
       this.inputPauseState = null;
       this.pendingConfirmation = null;
+      this.bindingCapture = null;
+      this.bindingReturn = null;
+      this.bindingButtons = new Map();
       this._ensureSettingDefaults();
       this._populateSectors();
       this._bind();
@@ -56,6 +60,7 @@
       this.renderCodex('bestiary');
       this._updateLoadoutSummary();
       this._syncSaveStatus();
+      this._syncPWAStatus();
     }
 
     _ensureSettingDefaults() {
@@ -161,12 +166,19 @@
       this.$('confirm-cancel').addEventListener('click', () => this._finishConfirmation(false));
       this.$('confirm-accept').addEventListener('click', () => this._finishConfirmation(true));
       this.$('save-export').addEventListener('click', () => this._exportSave());
+      this.$('save-recovery-export').addEventListener('click', () => this._exportSave(true));
+      this.$('save-reload').addEventListener('click', () => this._confirmAction('Relire le dossier actuel ?', 'Les modifications non enregistrées de cet onglet seront abandonnées. Exportez-les d’abord si vous souhaitez les conserver. Le dossier déjà enregistré ne sera pas effacé.', () => window.location.reload()));
       this.$('save-import').addEventListener('click', () => { if (this.game.state === 'menu') this.$('save-file').click(); });
       this.$('save-file').addEventListener('change', event => this._readSaveFile(event.target));
       document.addEventListener('nt-save-status', () => this._syncSaveStatus());
+      document.addEventListener('nt-pwa-status', () => this._syncPWAStatus());
+      this.$('pwa-install').addEventListener('click', async () => {
+        try { await window.nexusPWA?.install?.(); } catch { this.$('pwa-status').textContent = 'Installation indisponible. Le jeu reste accessible dans le navigateur.'; }
+      });
       this.$('pointer-lock-button').addEventListener('click', () => this._resumePointerControl());
 
       this._bindSettings();
+      this._bindRemapping();
       window.addEventListener('keydown', event => {
         if (!this.upgradeScreen.classList.contains('hidden')) {
           const index = event.code === 'Digit1' ? 0 : event.code === 'Digit2' ? 1 : event.code === 'Digit3' ? 2 : -1;
@@ -235,25 +247,51 @@
 
     _syncSaveStatus() {
       const status = this.game.save.status;
-      const warning = status && (!status.available || status.dirty || status.recovered);
+      const warning = status && (!status.available || status.dirty || status.recovered || status.conflict || status.futureVersion);
       const element = this.$('save-status');
       element.classList.toggle('hidden', !warning);
-      element.textContent = !warning ? '' : !status.available || status.dirty
+      element.textContent = status?.conflict
+        ? 'DOSSIER MODIFIÉ DANS UN AUTRE ONGLET — écriture bloquée pour protéger votre progression. Réglages : exportez cette tentative ou rechargez le dossier actuel.'
+        : status?.futureVersion
+        ? 'DOSSIER D’UNE VERSION PLUS RÉCENTE — aucune écriture autorisée. Fermez les onglets pour actualiser le jeu ; la copie originale reste exportable dans les réglages.'
+        : !warning ? '' : !status.available || status.dirty
         ? 'SAUVEGARDE NON CONFIRMÉE — exportez une copie du dossier dans les réglages avant de fermer.'
         : 'DOSSIER RÉPARÉ — certaines données invalides ont été récupérées ; une copie de secours est conservée sur cet appareil.';
+      this.$('save-recovery-export').classList.toggle('hidden', typeof this.game.save.recoveryBackup !== 'string');
+      this.$('save-reload').classList.toggle('hidden', !status?.conflict);
+      this.$('save-import').disabled = this.game.state !== 'menu' || Boolean(status?.conflict || status?.futureVersion);
     }
 
-    _exportSave() {
+    _syncPWAStatus() {
+      const status = window.nexusPWA?.status;
+      if (!status) return;
+      this.$('pwa-install').classList.toggle('hidden', !status.installAvailable || Boolean(status.installed));
+      this.$('pwa-status').textContent = status.supported === false
+        ? 'Ce navigateur ne permet pas le mode hors ligne. Le jeu reste accessible en ligne ; exportez votre dossier pour le conserver.'
+        : status.error
+        ? status.offlineReady
+          ? 'Jeu déjà prêt hors ligne. Installation ou mise à jour indisponible pour le moment ; réessayez après avoir fermé les autres onglets du jeu.'
+          : 'Mode hors ligne indisponible. Vérifiez la connexion et les autorisations du navigateur, puis rechargez le jeu. Le jeu en ligne reste accessible.'
+        : status.updateAvailable
+        ? 'Mise à jour prête. Fermez tous les onglets du jeu puis rouvrez-le : votre dossier est conservé.'
+        : status.offlineReady
+        ? (status.installed ? 'Application installée. ' : '') + 'Jeu prêt hors ligne sur cet appareil. La sauvegarde reste locale : conservez un export.'
+        : 'Préparation du mode hors ligne… Gardez le jeu ouvert jusqu’à la fin du téléchargement.';
+    }
+
+    _exportSave(original = false) {
       try {
-        const url = URL.createObjectURL(new Blob([this.game.save.exportJSON()], { type:'application/json' }));
+        const content = original ? this.game.save.recoveryBackup : this.game.save.exportJSON();
+        if (typeof content !== 'string') throw new Error('Aucune copie originale disponible.');
+        const url = URL.createObjectURL(new Blob([content], { type:'application/json' }));
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = 'nexus-dossier-' + new Date().toISOString().slice(0, 10) + '.json';
+        anchor.download = (original ? 'nexus-original-' : 'nexus-dossier-') + new Date().toISOString().slice(0, 10) + '.json';
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        this.$('save-transfer-status').textContent = 'Export préparé. Conservez le fichier JSON hors du stockage du navigateur.';
+        this.$('save-transfer-status').textContent = original ? 'Copie originale exportée sans modification ; elle peut contenir des données non compatibles avec cette version.' : 'Export préparé. Conservez le fichier JSON hors du stockage du navigateur.';
       } catch {
         this.$('save-transfer-status').textContent = 'Export impossible. Votre dossier actuel n’a pas été remplacé.';
       }
@@ -291,6 +329,137 @@
         this.renderCodex(this.currentCodexTab);
         this._syncSaveStatus();
       });
+    }
+
+    _bindRemapping() {
+      const Input = NT.Engine.Input;
+      for (const [action, definition] of Object.entries(Input.ACTIONS)) {
+        const button = document.createElement('button');
+        button.className = 'binding-button secondary-button';
+        button.setAttribute('data-bind-action', action);
+        button.addEventListener('click', () => this._listenForBinding(action));
+        this.$('bindings-grid').appendChild(button);
+        this.bindingButtons.set(action, button);
+      }
+      this.$('bindings-button').addEventListener('click', () => {
+        this.bindingReturn = { modal:this.activeModal, focus:this.lastFocused, button:document.activeElement };
+        this.activeModal?.classList.add('hidden');
+        this._refreshBindings();
+        this.openModal(this.bindingsScreen);
+      });
+      this.$('bindings-cancel').addEventListener('click', () => this._cancelBinding());
+      this.$('bindings-reset').addEventListener('click', () => {
+        this._cancelBinding();
+        this._confirmAction('Rétablir les commandes ?', 'Seules les affectations clavier et souris seront réinitialisées. Votre dossier et les autres réglages sont conservés.', () => {
+          this.game.settings.bindings = Input.defaultBindings();
+          this._commitSettings();
+          this._refreshBindings();
+          this.$('bindings-status').textContent = 'Commandes par défaut rétablies.';
+        });
+      });
+      // Capture avant les raccourcis du jeu : aucune action n’est déclenchée
+      // pendant l’affectation. Tab reste disponible pour sortir de la saisie.
+      document.addEventListener('keydown', event => {
+        if (!this.bindingCapture) return;
+        if (event.code === 'Tab') { this._cancelBinding(); return; }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (event.code === 'Escape') { this._cancelBinding(); return; }
+        if (event.repeat) return;
+        if (event.altKey || event.metaKey || (event.ctrlKey && !/^Control/.test(event.code))) {
+          this.$('bindings-status').textContent = 'Les combinaisons système sont réservées. Choisissez une touche seule.';
+          return;
+        }
+        this._assignBinding(event.code);
+      }, { capture:true });
+      document.addEventListener('mousedown', event => {
+        if (!this.bindingCapture) return;
+        if (event.target.closest?.('button, input, select, a')) { this._cancelBinding(); return; }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this._assignBinding('Mouse' + event.button);
+      }, { capture:true });
+      this.bindingsScreen.addEventListener('contextmenu', event => event.preventDefault());
+      window.addEventListener('blur', () => this._cancelBinding());
+      this._refreshBindings();
+    }
+
+    _listenForBinding(action) {
+      this._cancelBinding();
+      this.bindingCapture = action;
+      const button = this.bindingButtons.get(action);
+      button.textContent = NT.Engine.Input.ACTIONS[action].label + ' · APPUYEZ…';
+      button.setAttribute('aria-pressed', 'true');
+      this.$('bindings-cancel').disabled = false;
+      this.$('bindings-capture').classList.add('listening');
+      this.$('bindings-status').textContent = 'Nouvelle commande pour « ' + NT.Engine.Input.ACTIONS[action].label + ' ». Échap annule.';
+    }
+
+    _cancelBinding() {
+      if (!this.bindingCapture) return;
+      const button = this.bindingButtons.get(this.bindingCapture);
+      this.bindingCapture = null;
+      this.$('bindings-cancel').disabled = true;
+      this.$('bindings-capture').classList.remove('listening');
+      this._refreshBindings();
+      this.$('bindings-status').textContent = 'Saisie annulée. Aucune commande modifiée.';
+      button?.focus?.();
+    }
+
+    _assignBinding(code) {
+      const Input = NT.Engine.Input, action = this.bindingCapture;
+      if (!action) return;
+      const candidate = Input.validateBindings({ ...this.game.settings.bindings, [action]:code });
+      if (!Input.isBindingCode(code) || !candidate.valid) {
+        this.$('bindings-status').textContent = candidate.error || 'Cette commande est réservée. Choisissez une autre touche.';
+        return;
+      }
+      this.game.settings.bindings = candidate.bindings;
+      this.bindingCapture = null;
+      this.$('bindings-cancel').disabled = true;
+      this.$('bindings-capture').classList.remove('listening');
+      this._commitSettings();
+      this._refreshBindings();
+      const status = this.game.save.status;
+      const unconfirmed = status?.available === false || status?.dirty || status?.conflict || status?.futureVersion;
+      this.$('bindings-status').textContent = Input.ACTIONS[action].label + ' : ' + Input.bindingLabel(action, candidate.bindings) + (unconfirmed ? ' · commande locale, enregistrement non confirmé.' : ' · commande enregistrée.');
+      this.bindingButtons.get(action)?.focus?.();
+    }
+
+    _refreshBindings() {
+      const Input = NT.Engine.Input;
+      this.game.settings.bindings ||= Input.defaultBindings();
+      for (const [action, button] of this.bindingButtons) {
+        const label = Input.ACTIONS[action].label + ' · ' + Input.bindingLabel(action, this.game.settings.bindings);
+        button.textContent = label;
+        button.setAttribute('aria-label', 'Modifier : ' + label);
+        button.setAttribute('aria-pressed', 'false');
+      }
+      this.lastWeaponSlots = '';
+      this._refreshBindingHints();
+    }
+
+    _bindingLabel(action, touch = false) {
+      return (touch ? this.defaultBindingLabels : this.bindingLabels)?.[action] || NT.Engine.Input.bindingLabel(action, touch ? NT.Engine.Input.defaultBindings() : this.game.settings.bindings);
+    }
+
+    _refreshBindingHints() {
+      const Input = NT.Engine.Input;
+      this.bindingLabels = Object.fromEntries(Object.keys(Input.ACTIONS).map(action => [action, Input.bindingLabel(action, this.game.settings.bindings)]));
+      this.defaultBindingLabels ||= Object.fromEntries(Object.keys(Input.ACTIONS).map(action => [action, Input.bindingLabel(action, Input.defaultBindings())]));
+      const movement = ['moveForward','moveLeft','moveBack','moveRight'];
+      document.querySelectorAll('[data-binding-directions]').forEach(element => {
+        element.textContent = movement.some(action => this.game.settings.bindings?.[action]) ? movement.map(action => this._bindingLabel(action)).join(' · ') : 'ZQSD / WASD';
+      });
+      const weapons = Array.from({ length:6 }, (_, index) => 'weapon' + (index + 1));
+      document.querySelectorAll('[data-binding-weapons]').forEach(element => {
+        element.textContent = weapons.some(action => this.game.settings.bindings?.[action]) ? weapons.map(action => this._bindingLabel(action)).join(' · ') : '1–6';
+      });
+      document.querySelectorAll('[data-binding]').forEach(element => {
+        const touchHUD = this.game.input.touchMode && Boolean(element.closest?.('#hud'));
+        element.textContent = this._bindingLabel(element.dataset.binding, touchHUD);
+      });
+      this.$('bindings-summary').textContent = 'Commandes actuelles — Avancer : ' + this._bindingLabel('moveForward') + ' · Reculer : ' + this._bindingLabel('moveBack') + ' · Gauche : ' + this._bindingLabel('moveLeft') + ' · Droite : ' + this._bindingLabel('moveRight') + ' · Tir : ' + this._bindingLabel('fire') + ' · Visée : ' + this._bindingLabel('aim') + ' · Office suivant : ' + this._bindingLabel('nextWave') + '.';
     }
 
     _bindTabs() {
@@ -384,6 +553,7 @@
         this.$(id).checked = Boolean(s[key]);
       }
       this._applyAccessibilityPreferences();
+      this._refreshBindings();
     }
 
     _applyAccessibilityPreferences() {
@@ -395,6 +565,7 @@
       document.body.classList.toggle('enemy-high-contrast', Boolean(s.enemyContrast));
       document.body.classList.toggle('subtitles-disabled', s.subtitles === false);
       document.body.classList.toggle('touch-mode', Boolean(this.game.input.touchMode));
+      this._refreshBindingHints();
     }
 
     _hideGameplayScreens() {
@@ -402,6 +573,8 @@
     }
 
     showMainMenu() {
+      this._cancelBinding();
+      this.bindingsScreen.classList.add('hidden');
       this.mainMenu.classList.remove('hidden');
       this.hud.classList.add('hidden');
       this._hideGameplayScreens();
@@ -415,6 +588,8 @@
     }
 
     enterGame() {
+      this._cancelBinding();
+      this.bindingsScreen.classList.add('hidden');
       this.mainMenu.classList.add('hidden');
       for (const screen of [this.codexScreen, this.settingsScreen, this.creditsScreen, this.pauseScreen, this.gameoverScreen, this.victoryScreen, this.upgradeScreen, this.pointerLockScreen]) screen?.classList.add('hidden');
       this.hud.classList.remove('hidden');
@@ -477,6 +652,19 @@
 
     closeModal(element) {
       if (!element) return;
+      if (element === this.bindingsScreen) {
+        this._cancelBinding();
+        const destination = this.bindingReturn;
+        this.bindingReturn = null;
+        element.classList.add('hidden');
+        element.setAttribute('aria-hidden', 'true');
+        if (destination?.modal) {
+          this.openModal(destination.modal, false);
+          this.lastFocused = destination.focus;
+          destination.button?.focus?.();
+          return;
+        }
+      }
       if (element === this.confirmScreen) { this._finishConfirmation(false); return; }
       element.classList.add('hidden');
       element.setAttribute('aria-hidden', 'true');
@@ -490,7 +678,8 @@
     openSettings(fromPause = false) {
       if (fromPause) this.pauseScreen.classList.add('hidden');
       this.applySettingsToControls();
-      this.$('save-import').disabled = this.game.state !== 'menu';
+      this._syncSaveStatus();
+      this._syncPWAStatus();
       this.openModal(this.settingsScreen);
     }
     openCodex() { this.renderCodex(this.currentCodexTab); this.openModal(this.codexScreen); }
@@ -627,7 +816,7 @@
       guide.classList.toggle('hidden', !initial);
       if (initial) guide.textContent = game.input.touchMode
         ? 'Stick gauche : bouger · Glissez à droite : regarder · FEU : tirer · R : recharger · C : capacité'
-        : 'ZQSD / WASD : bouger · Clic : tirer · R : recharger · C : capacité · E : station · Échap : aide';
+        : this._bindingLabel('moveForward') + ' : avancer · ' + this._bindingLabel('fire') + ' : tirer · ' + this._bindingLabel('reload') + ' : recharger · ' + this._bindingLabel('ability') + ' : capacité · ' + this._bindingLabel('interact') + ' : station · Échap : pause';
       const next = this.$('touch-next-wave');
       next.classList.toggle('hidden', !game.intermissionActive || !game.input.touchMode);
       next.disabled = game.intermissionReadyDelay > 0;
@@ -644,7 +833,7 @@
       Object.values(D.WEAPONS).sort((a, b) => a.slot - b.slot).forEach(weapon => {
         const div = document.createElement('div');
         div.className = 'weapon-slot';
-        div.textContent = weapon.slot;
+        div.textContent = this.game.input.touchMode ? weapon.slot : this._bindingLabel('weapon' + weapon.slot);
         if (game.weapons.currentId === weapon.id) div.classList.add('active');
         if (!game.player.unlockedWeapons.has(weapon.id)) div.classList.add('locked');
         root.appendChild(div);

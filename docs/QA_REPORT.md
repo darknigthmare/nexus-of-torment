@@ -1,4 +1,4 @@
-# Rapport QA — 1.2.0 « Liturgie nerveuse »
+# Rapport QA — 1.2.1 « Liturgie nerveuse »
 
 Date : 31 août 2026. Périmètre : jeu solo WebGL 2, Chrome desktop et tactile émulé.
 
@@ -9,19 +9,22 @@ La commande de publication est `npm run qa:release`. Les preuves actives se trou
 | Suite | Résultat |
 |---|---:|
 | Scripts de jeu : syntaxe | 10/10 |
-| Audit statique | 88/88 |
+| Audit statique | 95/95 |
 | Gameplay historique, inchangé | 72/72 |
 | Combat, accessibilité ennemie et progression | 41/41 |
 | Animation sans dérive | 33/33 |
 | Lumières, télégraphes et flashes | 27/27 |
 | Sauvegarde, audio, cycle de vie et PWA | 73/73 |
-| Interface et transactions | 28/28 |
+| Interface et transactions | 44/44 |
+| Commandes et entrées physiques/tactiles | 87/87 |
+| Stockage concurrent, versions futures et intégrité PWA | 51/51 |
+| Charges, slam, stations et orientation de reprise | 33/33 |
 | Serveur HTTP local | 5/5 |
 | Build et intégrité de révision | 9/9 |
-| Chrome réel, parcours desktop/mobile/PWA | 60/60 |
-| Audit final de la preuve navigateur | 95/95 |
+| Chrome réel, parcours desktop/mobile/PWA | 97/97 |
+| Audit final de la preuve navigateur | 103/103 |
 
-Les six suites comportementales totalisent **274 scénarios déterministes**. Les audits statiques et de release sont séparés : leurs assertions se recoupent et ne sont pas des parties jouées.
+Les neuf suites comportementales totalisent **461 contrôles**. Certains regroupent plusieurs variantes ; ils ne représentent pas 461 parties jouées. Les audits statiques et de release sont séparés : leurs assertions se recoupent.
 
 ## Ce qui est réellement testé
 
@@ -33,17 +36,27 @@ Douze campagnes couvrent trois secteurs et quatre difficultés : dix vagues, obj
 
 ### Sauvegarde et récupération
 
+La passe 1.2.1 reproduit aussi une écriture depuis un onglet périmé : deux pages Chrome partagent une base de 19 fragments, la première en enregistre 21, la seconde reçoit le vrai événement storage et bloque ses écritures sans écraser les 21 fragments. Son brouillon reste exportable octet pour octet, puis le rechargement confirmé adopte la nouvelle base. Une sauvegarde de version 999 conserve son brut, ses CRLF, son Unicode et son secours préexistant ; le démarrage et l’import restent interdits dans l’ancienne application.
+
+Le garde compare la dernière valeur lue juste avant l’écriture. Il détecte un état périmé ; localStorage ne fournit pas de transaction atomique entre processus. Un seul onglet de jeu actif reste conseillé. Ce n’est pas une sauvegarde cloud.
+
 Les tests emploient le vrai `SaveStore` : sous-objets invalides, JSON corrompu, champs bornés, version future, identifiants hérités (`constructor`, `toString`, `__proto__`), import/export, reprise et refus d’écriture. L’import ne remplace jamais le dossier en mémoire si la persistance échoue. Les achats échoués rendent les fragments et le rang.
 
 Dans Chrome, un stockage corrompu est réparé avec copie de secours et avertissement visible. Une construction d’AudioContext volontairement refusée n’empêche pas de jouer. L’extension WebGL réelle provoque une perte puis une restauration du contexte : simulation figée, bouton de rechargement conservé, checkpoint intact puis reprise proposée après reconstruction.
 
 ### Interface et mobile
 
+Les vingt actions clavier/souris sont accessibles depuis les réglages. Chrome vérifie le conflit R/grenade, l’annulation, l’enregistrement de I/T, leur restauration après reload, le vrai déplacement avec I, l’absence de déplacement avec l’ancien W et le retour aux valeurs par défaut via confirmation UI. La mesure du déplacement isole temporairement impulsions et dégâts ; hordes et directeur restent présents. Le dialogue mobile est défilable et ses vingt cibles font au moins 44 pixels CSS.
+
 Menus, briefing, réglages, export téléchargé, import confirmé/annulé/refusé, focus, confirmation d’abandon/redémarrage, nouveau run et reprise passent par leurs contrôles visibles. Les greffes n’ont plus de délai par défaut ; le chrono est optionnel et suspendu quand l’onglet est caché.
 
 Le tactile est exercé en Chrome à **390 × 844**, puis **844 × 390** : menus secondaires accessibles, tir réellement transmis au système d’arme, stick, pause, greffe, lancement manuel de l’intermission, guidage et perte de focus. Les boutons testés mesurent au moins 44 pixels CSS. Le HUD paysage a été corrigé après inspection des captures réelles.
 
 ### PWA et réseau
+
+La build contient les SHA-256 SRI attendus pour chaque ressource précachée. Chrome retire deux fichiers de son cache QA, puis vérifie la réparation complète des 17 entrées. Une interception isolée altère ensuite réellement un module distant : Fetch refuse son intégrité, le lot reste incomplet sans écriture partielle et renvoie 503. Après retrait de l’interception et délai anti-boucle, le shell se répare. Ces opérations touchent seulement un profil de test temporaire.
+
+Le statut hors ligne/installable/installé est distinct dans les réglages. Le dialogue natif d’installation n’a pas été validé par une installation humaine sur appareil ; ses événements sont couverts par des contrats. Une erreur technique reste dans les diagnostics, jamais dans le texte joueur.
 
 Le serveur de QA reproduit la redirection Vercel `/index.html → /`. Cela a révélé un vrai `net::ERR_FAILED` lors de la reprise : la réponse HTML redirigée était mise en cache. Le service worker reconstruit désormais cette réponse sans perdre son contenu ni ses en-têtes.
 
@@ -57,7 +70,7 @@ Dix-huit fichiers statiques, dont l’illustration originale, sont publiés. Les
 
 ## Console et performances
 
-Aucune erreur inattendue n’est admise. Deux signaux explicitement provoqués sont archivés à part : le 503 demandé hors ligne et le message exact de la perte WebGL volontaire. Les erreurs d’audio ou de pointeur ne sont plus ignorées par une expression générale.
+Aucune erreur inattendue n’est admise. Les signaux explicitement provoqués sont archivés à part : 503 hors ligne, refus SRI dans le profil de réparation et message exact de perte WebGL volontaire. Les erreurs d’audio ou de pointeur ne sont pas ignorées par une expression générale.
 
 Les mesures exactes de cadence, GPU, date et empreinte de build sont dans le rapport JSON. La porte matérielle locale exige **1280 × 720 natif**, renderScale 1, trois échantillons ≥24 FPS et médiane ≥30 FPS. Il s’agit d’un scénario court sur Radeon RX 6800 XT, pas d’un benchmark toutes hordes/tous appareils.
 
@@ -73,7 +86,15 @@ La CI Linux utilise explicitement SwANGLE logiciel pour les parcours fonctionnel
 
 Autres captures : menu mobile, combat portrait, briefing, outils de sauvegarde et choix de greffes dans `docs/screenshots/`.
 
+La passe 1.2.1 ajoute les commandes desktop/mobile et les dossiers protégés : `v1.2-bindings.png`, `v1.2-mobile-bindings.png`, `v1.2-storage-conflict.png`, `v1.2-future-save.png`. Les noms de preuves restent dans la famille 1.2 ; le JSON précise la version exacte et son empreinte de build.
+
+L’inspection du paysage a révélé une fausse alerte « dossier réparé ». Le parcours Chrome complet a isolé un seul champ : un yaw de 0,00022822839394567797 devenait 0,00022822839394567794. La normalisation conserve désormais les angles canoniques exactement et intervient dès la création du snapshot. Le contrôle navigateur exige une sauvegarde valide sans réparation ; la capture finale confirme la disparition de l’alerte.
+
+Le navigateur intégré Codex était indisponible par restriction ACL. Les parcours ont été exécutés par le SDK de la suite du dépôt dans Google Chrome réel headless, puis les captures locales ont été inspectées. Aucun playtest humain n’est sous-entendu.
+
 ## Équilibrage : preuve distincte
+
+Les quatre correctifs de gameplay 1.2.1, leurs références et limites sont détaillés dans [GAMEPLAY_POLISH_1.2.1.md](GAMEPLAY_POLISH_1.2.1.md). Le noyau de 30 contrats passe 30/30 contre 16/30 sur la référence précédente ; trois régressions supplémentaires couvrent la précision des angles et le vrai SaveStore. Les tests de vague 9995 instancient le vrai boss et exécutent son impact, sans prétendre simuler 9995 vagues complètes.
 
 [Audit analytique du budget](BALANCE_AUDIT.md) : 640 scénarios de tir/achat modélisés. Les 384 scénarios à 25 % / 50 % d’impacts corporels ou 65 % de tirs à la tête sont financés dans les hypothèses déclarées. À faible précision, le premier boss est le principal point de risque.
 

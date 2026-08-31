@@ -33,6 +33,14 @@
 - PWA installable, cache et redémarrage hors ligne ;
 - build statique, CI et QA Chrome automatisée.
 
+### 1.2.1 — Commandes et continuité
+
+- vingt actions clavier/souris personnalisables et tactile indépendant ;
+- entrées nettoyées au changement de focus, maintien multitouch ;
+- détection des sauvegardes périmées, export brut des formats futurs et rechargement confirmé ;
+- état d’installation/hors-ligne observable, réparation du cache protégée par SRI ;
+- charges respectant les couverts, slam proportionnel, stations sans achat inutile et orientation de reprise préservée.
+
 ## Axe 1 — Secteurs supplémentaires
 
 - **Chapelle de Chair** : nef étroite, autels destructibles et voies latérales.
@@ -64,7 +72,7 @@ Les deux anciennes pistes « lance-chaînes » et « projecteur exorciste » son
 ## Axe 4 — Accessibilité et contrôles
 
 - support manette natif ;
-- remapping complet ;
+- personnalisation des commandes manette et des gestes ;
 - navigation intégrale des menus à la manette ;
 - presets daltonisme supplémentaires ;
 - sous-titrage directionnel des signaux audio ;

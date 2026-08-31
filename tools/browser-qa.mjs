@@ -5,6 +5,9 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { auditMenu, auditPause, auditMobileMenu, auditMobileCombat, auditRecovery } from './browser-product-audit.mjs';
+import { auditBindingsMenu, auditBindingsGameplay, auditBindingsMobile } from './browser-bindings-audit.mjs';
+import { auditStorageTabs, auditFutureSave } from './browser-storage-audit.mjs';
+import { auditShellRepair } from './browser-shell-audit.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let url = process.argv[2] || process.env.NEXUS_QA_URL || null;
@@ -34,7 +37,7 @@ const reportFile = path.join(outputDirectory, 'QA_BROWSER_1.2.json');
 const evidencePath = filename => path.relative(root, path.join(shots, filename)).replaceAll('\\', '/');
 fs.mkdirSync(shots, { recursive:true });
 const report = {
-  schemaVersion:1, product:'NEXUS OF TORMENT — Liturgie nerveuse', version:'1.2.0',
+  schemaVersion:1, product:'NEXUS OF TORMENT — Liturgie nerveuse', version:JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf8')).version,
   target:explicitUrl ? 'production-url' : 'local-build',
   executedAt:new Date().toISOString(), url,
   browser:{ engine:'Chromium', executable:chrome, headless, softwareRenderer, launchArgs, serviceWorkerNetworkEvents:true },
@@ -44,7 +47,7 @@ const report = {
     mobileGameplay:evidencePath('v1.2-mobile-gameplay.png')
   }
 };
-report.auditEvidence = Object.fromEntries(['briefing','save-tools','mobile-menu','mobile-grafts','mobile-landscape'].map(name => [name, evidencePath('v1.2-' + name + '.png')]));
+report.auditEvidence = Object.fromEntries(['briefing','save-tools','mobile-menu','mobile-grafts','mobile-landscape','bindings','mobile-bindings','storage-conflict','future-save'].map(name => [name, evidencePath('v1.2-' + name + '.png')]));
 function verify(name, value, details) {
   report.checks.push({ name, passed:Boolean(value), ...(details === undefined ? {} : { details }) });
   if (!value) { report.failures.push(name); throw new Error(name); }
@@ -233,6 +236,7 @@ try {
   verify('Document français titré', menu.lang === 'fr' && /NEXUS OF TORMENT/i.test(menu.title), menu);
   await page.screenshot({ path:path.join(shots, 'v1.2-desktop-menu.png') });
   await auditMenu(page, verify, shots);
+  await auditBindingsMenu(page, verify, shots);
 
   await page.locator('#settings-button').click();
   await page.locator('#reduced-motion').check();
@@ -290,6 +294,7 @@ try {
     renderScale:combat.renderScale, buffer:combat.buffer
   };
   await page.screenshot({ path:path.join(shots, 'v1.2-desktop-gameplay.png') });
+  await auditBindingsGameplay(page, verify);
   await auditPause(page, verify);
 
   const difficulties = await page.evaluate(() => {
@@ -477,6 +482,7 @@ try {
   verify('Menu mobile sans débordement', responsive.touch && responsive.scroll <= responsive.width + 1 &&
     responsive.sectors === 3, responsive);
   await auditMobileMenu(mobilePage, verify, shots);
+  await auditBindingsMobile(mobilePage, verify, shots);
   await mobilePage.locator('#difficulty').selectOption('nexus');
   await mobilePage.locator('#mode').selectOption('endless');
   await mobilePage.locator('#sector').selectOption('ossuary');
@@ -524,6 +530,9 @@ try {
   observePage(recoveryPage, 'recovery', ['Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.']);
   await auditRecovery(recoveryPage, verify, url);
   await recoveryContext.close();
+  await auditStorageTabs(browser, verify, url, shots, observePage);
+  await auditFutureSave(browser, verify, url, shots, observePage);
+  await auditShellRepair(browser, verify, url, observePage);
 
   const realErrors = unexpectedErrors();
   verify('Console et runtime sans erreur', realErrors.length === 0, realErrors);

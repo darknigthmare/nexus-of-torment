@@ -663,7 +663,77 @@
     clear() { this.particles.length = 0; }
   }
 
+  const INPUT_ACTIONS = Object.freeze(Object.fromEntries(Object.entries({
+    moveForward:{label:'Avancer',codes:['KeyW','KeyZ','ArrowUp']},
+    moveBack:{label:'Reculer',codes:['KeyS','ArrowDown']},
+    moveLeft:{label:'Aller à gauche',codes:['KeyA','KeyQ','ArrowLeft']},
+    moveRight:{label:'Aller à droite',codes:['KeyD','ArrowRight']},
+    sprint:{label:'Courir',codes:['ShiftLeft','ShiftRight']},
+    jump:{label:'Sauter',codes:['Space']},
+    reload:{label:'Recharger',codes:['KeyR']},
+    grenade:{label:'Grenade',codes:['KeyG']},
+    ability:{label:'Capacité',codes:['KeyC']},
+    melee:{label:'Coup de crosse',codes:['KeyV']},
+    interact:{label:'Interagir',codes:['KeyE']},
+    nextWave:{label:'Office suivant',codes:['Enter','KeyF']},
+    weapon1:{label:'Arme 1',codes:['Digit1']},
+    weapon2:{label:'Arme 2',codes:['Digit2']},
+    weapon3:{label:'Arme 3',codes:['Digit3']},
+    weapon4:{label:'Arme 4',codes:['Digit4']},
+    weapon5:{label:'Arme 5',codes:['Digit5']},
+    weapon6:{label:'Arme 6',codes:['Digit6']},
+    fire:{label:'Tirer',codes:['Mouse0']},
+    aim:{label:'Viser',codes:['Mouse2']}
+  }).map(([id, action]) => [id, Object.freeze({label:action.label,codes:Object.freeze(action.codes)})])));
+  const INPUT_CODES = new Set([
+    ...Array.from({length:26},(_,i)=>'Key'+String.fromCharCode(65+i)),
+    ...Array.from({length:10},(_,i)=>'Digit'+i), ...Array.from({length:10},(_,i)=>'Numpad'+i),
+    ...Array.from({length:5},(_,i)=>'Mouse'+i),
+    'ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Enter','NumpadEnter',
+    'ShiftLeft','ShiftRight','ControlLeft','ControlRight','CapsLock','Backspace','Delete','Insert','Home','End','PageUp','PageDown',
+    'Backquote','Minus','Equal','BracketLeft','BracketRight','Backslash','IntlBackslash','Semicolon','Quote','Comma','Period','Slash',
+    'NumLock','NumpadAdd','NumpadSubtract','NumpadMultiply','NumpadDivide','NumpadDecimal'
+  ]);
+  const INPUT_LABELS = {Mouse0:'Clic gauche',Mouse1:'Clic milieu',Mouse2:'Clic droit',Mouse3:'Souris 4',Mouse4:'Souris 5',Space:'Espace',Enter:'Entrée',NumpadEnter:'Entrée pavé',ShiftLeft:'Maj gauche',ShiftRight:'Maj droite',ControlLeft:'Ctrl gauche',ControlRight:'Ctrl droite',ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',Backspace:'Retour arrière',Delete:'Suppr',Home:'Début',End:'Fin',PageUp:'Page ↑',PageDown:'Page ↓'};
+
   class Input {
+    static get ACTIONS() { return INPUT_ACTIONS; }
+    static defaultBindings() { return Object.fromEntries(Object.keys(INPUT_ACTIONS).map(id => [id, ''])); }
+    static isBindingCode(code) { return typeof code === 'string' && INPUT_CODES.has(code); }
+    static validateBindings(value) {
+      const bindings = Input.defaultBindings();
+      const invalid = error => ({ bindings:Input.defaultBindings(), valid:false, error });
+      if (value === undefined) return { bindings, valid:true, error:null };
+      try {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return invalid('Configuration de commandes invalide.');
+        const prototype = Object.getPrototypeOf(value);
+        if (prototype !== null && (Object.getPrototypeOf(prototype) !== null || !Object.hasOwn(prototype, 'hasOwnProperty'))) return invalid('Prototype de commandes interdit.');
+        for (const key of Reflect.ownKeys(value)) {
+          if (typeof key !== 'string' || !Object.hasOwn(INPUT_ACTIONS, key)) return invalid('Action de commande inconnue.');
+          const descriptor = Object.getOwnPropertyDescriptor(value, key);
+          if (!descriptor || !Object.hasOwn(descriptor, 'value')) return invalid('Configuration de commandes illisible.');
+          const code = descriptor.value;
+          if (typeof code !== 'string' || (code !== '' && !Input.isBindingCode(code))) return invalid('Touche réservée ou inconnue pour ' + INPUT_ACTIONS[key].label + '.');
+          bindings[key] = code;
+        }
+        const owners = new Map();
+        for (const [id, action] of Object.entries(INPUT_ACTIONS)) {
+          for (const code of bindings[id] ? [bindings[id]] : action.codes) {
+            if (owners.has(code)) return invalid('Conflit entre ' + INPUT_ACTIONS[owners.get(code)].label + ' et ' + action.label + '.');
+            owners.set(code, id);
+          }
+        }
+        return { bindings, valid:true, error:null };
+      } catch { return invalid('Configuration de commandes illisible.'); }
+    }
+    static bindingLabel(action, bindings) {
+      if (!Object.hasOwn(INPUT_ACTIONS, action)) return '';
+      const definition = INPUT_ACTIONS[action];
+      if (!definition) return '';
+      const normalized = Input.validateBindings(bindings).bindings;
+      const codes = normalized[action] ? [normalized[action]] : definition.codes;
+      return codes.map(code => INPUT_LABELS[code] || code.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Pavé ')).join(' / ');
+    }
     constructor(canvas) {
       this.canvas = canvas;
       this.keys = new Set();
@@ -676,6 +746,7 @@
       this.virtualPressed = new Set();
       this.virtualMouseButtons = new Set();
       this.virtualMousePressed = new Set();
+      this._touchResets = [];
       this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0;
       this.pointerLocked = false;
       this.lockRequestPending = false;
@@ -688,37 +759,50 @@
       this.touchMode = this.touchCapable && primaryPointerIsCoarse && !primaryPointerIsFine;
       this.enabled = true;
       this.onLockChange = null;
+      this.setBindings(Input.defaultBindings());
       this._bind();
       this._bindTouchControls();
     }
     _bind() {
       window.addEventListener('keydown', event => {
-        if (this._isFormControl(event.target)) return;
+        if (!this._canCapture(event) || event.repeat || !this._activeBindingCodes.has(event.code)) return;
         if (!this.keys.has(event.code)) this.pressed.add(event.code);
         this.keys.add(event.code);
-        if (this.enabled && ['Space','KeyW','KeyA','KeyS','KeyD','KeyZ','KeyQ','KeyV','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.code)) event.preventDefault();
+        event.preventDefault();
       }, { passive: false });
       window.addEventListener('keyup', event => {
-        if (this._isFormControl(event.target)) return;
+        // A release must clear gameplay state even after focus moves to a menu.
         this.keys.delete(event.code);
         this.released.add(event.code);
       });
       window.addEventListener('mousedown', event => {
+        if (!this._canCapture(event, true) || !this._activeBindingCodes.has('Mouse'+event.button)) return;
         if (!this.mouseButtons.has(event.button)) this.mousePressed.add(event.button);
         this.mouseButtons.add(event.button);
+        event.preventDefault();
       });
-      window.addEventListener('mouseup', event => { this.mouseButtons.delete(event.button); this.mouseReleased.add(event.button); });
+      window.addEventListener('mouseup', event => {
+        this.mouseButtons.delete(event.button); this.mouseReleased.add(event.button);
+        if (this._canCapture(event, true) && this._activeBindingCodes.has('Mouse'+event.button)) event.preventDefault();
+      });
+      window.addEventListener('auxclick', event => {
+        if (this._canCapture(event, true) && this._activeBindingCodes.has('Mouse'+event.button)) event.preventDefault();
+      });
       window.addEventListener('mousemove', event => {
         if (this.pointerLocked && this.enabled) { this.mouseDX += event.movementX || 0; this.mouseDY += event.movementY || 0; }
       });
-      window.addEventListener('wheel', event => { this.wheel += Math.sign(event.deltaY); }, { passive: true });
+      window.addEventListener('wheel', event => {
+        if (!this._canCapture(event, true)) return;
+        this.wheel += Math.sign(event.deltaY);
+        event.preventDefault();
+      }, { passive: false });
       window.addEventListener('blur', () => {
-        this.keys.clear();
-        this.mouseButtons.clear();
+        this.clearPhysicalInputs();
         this.clearVirtualInputs();
       });
       document.addEventListener('pointerlockchange', () => {
         this.pointerLocked = document.pointerLockElement === this.canvas;
+        if (!this.pointerLocked) this.clearPhysicalInputs();
         this.lockRequestPending = false;
         document.dispatchEvent(new CustomEvent('nt-pointer-lock-change', { detail: { locked: this.pointerLocked } }));
         if (this.onLockChange) this.onLockChange(this.pointerLocked);
@@ -741,7 +825,46 @@
     }
 
     _isFormControl(target) {
-      return Boolean(target?.closest?.('input, select, textarea, button, [contenteditable="true"]'));
+      return Boolean(target?.isContentEditable || target?.closest?.('input, select, textarea, button, [contenteditable]:not([contenteditable="false"])'));
+    }
+
+    _canCapture(event, mouse = false) {
+      if (!this.enabled || event.defaultPrevented || event.isComposing || event.metaKey || event.altKey || this._isFormControl(event.target)) return false;
+      return this.pointerLocked || (this.touchMode && document.body?.classList.contains('game-active')) || (mouse && event.target === this.canvas);
+    }
+
+    setBindings(value) {
+      const result = Input.validateBindings(value);
+      this.bindings = { ...result.bindings };
+      this._boundCodes = Object.create(null);
+      this._activeBindingCodes = new Set();
+      for (const [id, action] of Object.entries(INPUT_ACTIONS)) {
+        const codes = this.bindings[id] ? [this.bindings[id]] : action.codes;
+        for (const canonical of action.codes) this._boundCodes[canonical] = codes;
+        for (const code of codes) this._activeBindingCodes.add(code);
+      }
+      this.clearPhysicalInputs();
+      return result;
+    }
+
+    clearPhysicalInputs() {
+      this.keys.clear(); this.pressed.clear(); this.released.clear();
+      this.mouseButtons.clear(); this.mousePressed.clear(); this.mouseReleased.clear();
+      this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0;
+    }
+
+    _physicalHeld(canonical) {
+      return (this._boundCodes[canonical] || [canonical]).some(code => code.startsWith('Mouse') ? this.mouseButtons.has(Number(code.slice(5))) : this.keys.has(code));
+    }
+
+    _consumePhysical(canonical) {
+      let result = false;
+      for (const code of this._boundCodes[canonical] || [canonical]) {
+        const mouse = code.startsWith('Mouse'), value = mouse ? Number(code.slice(5)) : code;
+        const pressed = mouse ? this.mousePressed : this.pressed;
+        if (pressed.delete(value)) result = true;
+      }
+      return result;
     }
 
     _setTouchMode(active) {
@@ -787,7 +910,7 @@
         this.setVirtualKey('KeyS', ny > .22);
       };
       move.addEventListener('pointerdown', event => {
-        if (event.pointerType === 'mouse') return;
+        if (event.pointerType === 'mouse' || movePointer !== null) return;
         event.preventDefault();
         this._activateTouchMode();
         movePointer = event.pointerId;
@@ -808,7 +931,7 @@
 
       let lookPointer = null, lookX = 0, lookY = 0;
       look.addEventListener('pointerdown', event => {
-        if (event.pointerType === 'mouse') return;
+        if (event.pointerType === 'mouse' || lookPointer !== null) return;
         event.preventDefault();
         this._activateTouchMode();
         lookPointer = event.pointerId;
@@ -829,17 +952,24 @@
           lookPointer = null;
         });
       }
+      this._touchResets.push(resetMove, () => { lookPointer = null; });
 
       root.querySelectorAll('[data-key], [data-mouse], [data-wheel]').forEach(button => {
-        const release = () => {
+        const pointers = new Set();
+        const reset = () => {
+          pointers.clear();
           if (button.dataset.key) this.setVirtualKey(button.dataset.key, false);
           if (button.dataset.mouse !== undefined) this.setVirtualMouse(Number(button.dataset.mouse), false);
           button.classList.remove('pressed');
         };
+        const release = event => { if (pointers.delete(event.pointerId) && !pointers.size) reset(); };
+        this._touchResets.push(reset);
         button.addEventListener('pointerdown', event => {
           if (event.pointerType === 'mouse' && !this.touchMode) return;
+          if (pointers.has(event.pointerId)) return;
           event.preventDefault();
           this._activateTouchMode();
+          pointers.add(event.pointerId);
           button.setPointerCapture?.(event.pointerId);
           button.classList.add('pressed');
           if (button.dataset.key) this.setVirtualKey(button.dataset.key, true);
@@ -877,6 +1007,7 @@
       this.virtualPressed.clear();
       this.virtualMouseButtons.clear();
       this.virtualMousePressed.clear();
+      for (const reset of this._touchResets) reset();
     }
 
     requestLock() {
@@ -918,18 +1049,18 @@
     }
 
     combatReady() { return this.touchMode || this.pointerLocked; }
-    key(code) { return this.keys.has(code) || this.virtualKeys.has(code); }
+    key(code) { return this._physicalHeld(code) || this.virtualKeys.has(code); }
     keyAny(...codes) { return codes.some(code => this.key(code)); }
     consume(code) {
-      const result = this.pressed.has(code) || this.virtualPressed.has(code);
-      this.pressed.delete(code);
+      const physical = this._consumePhysical(code);
+      const result = physical || this.virtualPressed.has(code);
       this.virtualPressed.delete(code);
       return result;
     }
-    mouse(button) { return this.mouseButtons.has(button) || this.virtualMouseButtons.has(button); }
+    mouse(button) { return this._physicalHeld('Mouse'+button) || this.virtualMouseButtons.has(button); }
     consumeMouse(button) {
-      const result = this.mousePressed.has(button) || this.virtualMousePressed.has(button);
-      this.mousePressed.delete(button);
+      const physical = this._consumePhysical('Mouse'+button);
+      const result = physical || this.virtualMousePressed.has(button);
       this.virtualMousePressed.delete(button);
       return result;
     }
@@ -944,8 +1075,10 @@
     constructor(key, defaults = {}) {
       this.key = key;
       this.defaults = structuredCloneSafe(defaults);
-      this.status = { available:true, dirty:false, recovered:false, error:null };
+      this.status = { available:true, dirty:false, recovered:false, conflict:false, futureVersion:null, error:null };
       this.recoveryBackup = null;
+      this._lastRaw = null;
+      this._hasRead = false;
       this.data = this.load();
     }
     _notify() {
@@ -977,6 +1110,11 @@
         return keys.length === Object.keys(b).length && keys.every(key => Object.prototype.hasOwnProperty.call(b, key) && equalData(a[key], b[key]));
       };
       const walk = (value, template, path = '') => {
+        if (path === 'settings.bindings') {
+          const result = Input.validateBindings(value);
+          if (!result.valid) invalid(path);
+          return result.bindings;
+        }
         if (path === 'activeRun') {
           if (value === null) return null;
           if (!plain(value) || value.version !== 1 || !checkTree(value, path)) { invalid(path); return null; }
@@ -1036,9 +1174,20 @@
       let raw = null;
       try {
         raw = localStorage.getItem(this.key);
+        this._lastRaw = raw;
+        this._hasRead = true;
         if (raw === null) return structuredCloneSafe(this.defaults);
         if (raw.length > 262144) throw new Error('Sauvegarde trop volumineuse.');
-        const result = this._normalize(JSON.parse(raw));
+        const parsed = JSON.parse(raw);
+        if (Number.isInteger(parsed?.version) && Number.isInteger(this.defaults.version) && parsed.version > this.defaults.version) {
+          // Une ancienne application ne migre jamais un format plus récent vers le bas.
+          // Le brut reste en mémoire ET sur disque ; même la clé de secours reste intacte.
+          this.recoveryBackup = raw;
+          this.status.futureVersion = parsed.version;
+          this.status.error = 'Sauvegarde d’une version plus récente : mettez le jeu à jour avant toute écriture.';
+          return structuredCloneSafe(this.defaults);
+        }
+        const result = this._normalize(parsed);
         if (result.repaired) this._preserveRecovery(raw);
         return result.data;
       } catch (error) {
@@ -1054,14 +1203,47 @@
       this.status.error = 'Sauvegarde réparée ; une copie de récupération est conservée.';
       try { localStorage.setItem(this.key + ':recovery', raw); } catch { /* Copie encore disponible en mémoire. */ }
     }
+    checkExternalChanges() {
+      if (this.status.conflict || this.status.futureVersion !== null) return true;
+      try {
+        const raw = localStorage.getItem(this.key);
+        if (!this._hasRead || raw !== this._lastRaw) {
+          // Ne pas adopter la nouvelle valeur comme base : le brouillon local doit
+          // rester exportable, mais seul un rechargement pourra autoriser des écritures.
+          Object.assign(this.status, { available:true, dirty:true, conflict:true, error:'Progression modifiée dans un autre onglet. Exportez votre copie puis rechargez le jeu.' });
+          if (raw !== null && raw.length <= 262144) {
+            try {
+              const parsed = JSON.parse(raw);
+              if (Number.isInteger(parsed?.version) && Number.isInteger(this.defaults.version) && parsed.version > this.defaults.version) {
+                this.status.futureVersion = parsed.version;
+                this.recoveryBackup = raw;
+              }
+            } catch { /* Même une suppression/corruption externe ne sera pas écrasée. */ }
+          }
+          this._notify();
+          return true;
+        }
+        return false;
+      } catch (error) {
+        Object.assign(this.status, { available:false, dirty:true, error:String(error.message || error) });
+        this._notify();
+        return true;
+      }
+    }
     save() {
       try {
+        // Contrôle synchrone au plus près de l’écriture, même sans événement storage.
+        // localStorage n’offre pas de transaction inter-onglets : ce garde détecte
+        // un instantané périmé, sans prétendre verrouiller deux écritures simultanées.
+        if (this.checkExternalChanges()) return false;
         const result = this._normalize(this.data);
         if (result.repaired) this.status.recovered = true;
         // Conserver l’identité de la racine : les transactions UI peuvent encore la restaurer.
         for (const key of Object.keys(this.data)) delete this.data[key];
         Object.assign(this.data, result.data);
-        localStorage.setItem(this.key, JSON.stringify(this.data));
+        const encoded = JSON.stringify(this.data);
+        localStorage.setItem(this.key, encoded);
+        this._lastRaw = encoded;
         Object.assign(this.status, { available:true, dirty:false, error:null });
         return true;
       } catch (error) {
@@ -1077,7 +1259,10 @@
         const parsed = JSON.parse(text);
         candidate = this._normalize(parsed, true);
         if (candidate.error) return { ok:false, error:candidate.error };
-        localStorage.setItem(this.key, JSON.stringify(candidate.data));
+        if (this.checkExternalChanges()) return { ok:false, error:this.status.error || 'Sauvegarde protégée : rechargez le jeu.' };
+        const encoded = JSON.stringify(candidate.data);
+        localStorage.setItem(this.key, encoded);
+        this._lastRaw = encoded;
       } catch (error) {
         if (candidate) {
           Object.assign(this.status, { available:false, dirty:true, error:String(error.message || error) });

@@ -86,6 +86,11 @@ export async function auditMobileCombat(page, verify, shots) {
   const nextBefore = await page.evaluate(() => window.nexusGame.wave);
   await page.locator('#touch-next-wave').tap();
   verify('Intermission lançable par bouton tactile', await page.evaluate(wave => window.nexusGame.wave === wave + 1 && !window.nexusGame.intermissionActive, nextBefore));
+  const checkpointStatus = await page.evaluate(() => {
+    const save = window.nexusGame.save;
+    return { ...save.status, strictError:save._normalize(save.data, true).error };
+  });
+  verify('Checkpoint tactile valide sans fausse réparation', checkpointStatus.available && !checkpointStatus.dirty && !checkpointStatus.recovered && !checkpointStatus.strictError, checkpointStatus);
   const guidance = await page.evaluate(() => {
     const g = window.nexusGame;
     g.waveObjective = { type:'hold', phase:'active', radius:2, progress:0, duration:18, reinforcementTimer:4, position:new window.NT.Math.Vec3(g.player.position.x + 12, 0, g.player.position.z) };

@@ -1,6 +1,6 @@
 # NEXUS OF TORMENT
 
-**Survival-horror d’action 3D — édition autonome 1.2.0 « Liturgie nerveuse »**
+**Survival-horror d’action 3D — édition autonome 1.2.1 « Liturgie nerveuse »**
 
 *Nexus of Torment* est un survival-horror d’action original jouable en solo au clavier-souris ou avec ses commandes tactiles. Le projet embarque son moteur WebGL 2, ses modèles 3D procéduraux, ses shaders, son audio synthétisé, son interface, sa progression roguelite et sa sauvegarde locale. La PWA installable reste jouable hors ligne après sa première mise en cache ; aucune API ni ressource distante n’est nécessaire pendant la partie.
 
@@ -42,6 +42,8 @@ Les résultats et mesures courants figurent dans [la preuve navigateur](docs/QA_
 
 ## Commandes
 
+Les commandes ci-dessous sont les valeurs par défaut. Dans **Réglages → Commandes clavier / souris**, vingt actions sont réaffectables avec détection des conflits. Les touches représentent leur position physique AZERTY/QWERTY. Échap, Tab et les raccourcis système restent réservés ; la molette conserve le changement d’arme. Les boutons tactiles ne dépendent pas de ces affectations.
+
 | Action | Commande |
 |---|---|
 | Déplacement | `ZQSD` ou `WASD` |
@@ -62,7 +64,7 @@ Sur desktop, le jeu utilise le verrouillage du pointeur : cliquez dans la scène
 
 Le **Briefing** du menu, aussi accessible depuis la pause, explique objectifs, économie, sauvegarde et commandes. Le guidage de sceau/cible et l’aide initiale peuvent être désactivés dans les réglages. Pendant l’intermission, `Entrée` / `F` ou le bouton tactile « Lancer l’office » permettent d’avancer après le délai de sécurité.
 
-## Contenu de la build 1.2.0
+## Contenu de la build 1.2.1
 
 - **3 doctrines jouables** : Rempart, Exécuteur et Occultiste.
 - **2 modes** : campagne en 10 vagues avec extraction, et survie sans fin.
@@ -154,6 +156,12 @@ nexus-of-torment-save-v1
 La sauvegarde comprend les réglages, fragments, améliorations persistantes, entrées du bestiaire, records de carrière et checkpoint de tentative active. La clé historique reste compatible ; les données sont validées et bornées avant restauration. La reprise revient au dernier checkpoint inter-vague, pas à la dernière seconde jouée.
 
 Dans les réglages, **Exporter** prépare un fichier JSON de secours. **Importer**, réservé au menu et limité à 256 Ko, exige confirmation et ne remplace le dossier qu’après une écriture réussie. Un import invalide ou un achat non enregistré conserve la progression précédente. Une alerte signale un stockage indisponible ou des données réparées ; dans ce cas, exportez une copie avant de fermer. Une sauvegarde corrompue conserve aussi une copie de récupération locale lorsque le stockage le permet. Il n’existe pas de synchronisation cloud.
+
+### Plusieurs onglets et mises à jour
+
+Un dossier modifié dans un autre onglet bloque les écritures et suspend la tentative : exportez au besoin le brouillon, puis utilisez **Recharger le dossier** dans les réglages. Une version de sauvegarde plus récente n’est jamais rétrogradée ; sa **copie originale** reste exportable. La protection détecte un instantané périmé, elle ne constitue pas un verrou atomique entre processus : gardez un seul onglet de jeu actif.
+
+Les réglages indiquent lorsque le jeu est prêt hors ligne. Si des fichiers du cache disparaissent, le shell complet est retéléchargé et vérifié par SHA-256 ; des octets d’une autre révision sont refusés. Pour appliquer une mise à jour prête, fermez tous les onglets du jeu et rouvrez-le en ligne.
 
 ## Architecture
 

@@ -31,6 +31,9 @@ const requiredFiles = [
   '.github/workflows/ci.yml', 'assets/nexus-keyart-v1.png', 'docs/ASSET_PROVENANCE.md',
   'tools/combat-contract-smoke.mjs', 'tools/render-contract-smoke.mjs', 'tools/presentation-contract-smoke.mjs',
   'tools/resilience-contract-smoke.mjs', 'tools/ui-contract-smoke.mjs',
+  'tools/input-contract-smoke.mjs', 'tools/storage-pwa-contract-smoke.mjs', 'tools/gameplay-polish-contract-smoke.mjs',
+  'tools/browser-bindings-audit.mjs', 'tools/browser-storage-audit.mjs', 'tools/browser-shell-audit.mjs',
+  'docs/GAMEPLAY_POLISH_1.2.1.md',
   'tools/browser-product-audit.mjs', 'tools/build-smoke.mjs', 'tools/production-smoke.mjs',
   'docs/GDD.md', 'docs/TECHNICAL.md', 'docs/CODEX.md', 'docs/QA_REPORT.md', 'docs/ROADMAP.md'
 ];
@@ -122,11 +125,22 @@ if (releaseAudit) {
       'Abandon annulable sans perdre la tentative',
       'Greffes sans délai de lecture par défaut',
       'Intermission lançable par bouton tactile',
+      'Checkpoint tactile valide sans fausse réparation',
       'Commandes tactiles contenues en paysage',
       'Dossier endommagé réparé avec copie et avertissement',
       'Démarrage jouable sans périphérique audio',
       'Perte WebGL réelle suspend la simulation',
       'Rechargement après perte graphique conserve la reprise',
+      'Commandes desktop : I avancer et T recharger enregistrés réellement',
+      'Commandes combat : I déplace réellement le joueur dans la simulation',
+      'Commandes combat : defaults restaurés et persistés sans modifier le dossier',
+      'Commandes mobile : dialogue sans débordement horizontal',
+      'Multi-onglets : vrai événement storage bloque le brouillon sans écraser 21 fragments',
+      'Multi-onglets : rechargement confirmé adopte 21 fragments et lève le blocage',
+      'Version future : téléchargement de la copie originale exact octet pour octet',
+      'Cache incomplet réparé atomiquement en ligne dans Chrome',
+      'SRI réel refuse un module distant altéré sans cache partiel',
+      'Réparation récupérable après refus d’intégrité',
       'Console et runtime sans erreur'
     ];
     const missingBrowserChecks = requiredBrowserChecks.filter(name =>
@@ -147,6 +161,12 @@ if (releaseAudit) {
       'Preuve locale : trois captures présentes et correctement référencées'
     );
     const performance = browserEvidence.performance || {};
+    const polishCaptures = ['bindings','mobile-bindings','storage-conflict','future-save'];
+    expect(polishCaptures.every(name => {
+      const relative = 'docs/screenshots/v1.2-' + name + '.png';
+      const file = path.join(root, relative);
+      return browserEvidence.auditEvidence?.[name] === relative && fs.existsSync(file) && fs.statSync(file).size > 0;
+    }), 'Preuve locale : captures commandes et sauvegardes protégées présentes');
     const samples = Array.isArray(performance.samples) ? performance.samples : [];
     const median = samples.length === 3 && samples.every(Number.isFinite)
       ? [...samples].sort((a, b) => a - b)[1] : 0;
@@ -197,9 +217,9 @@ expect(serviceWorkerSource.includes('assets/nexus-keyart-v1.png') && fs.readFile
 const normalizedIndex = indexSource.toLocaleLowerCase('fr');
 expect(
   indexSource.includes('1–6') &&
-  normalizedIndex.includes('<kbd>c</kbd>') &&
-  !normalizedIndex.includes('<kbd>q</kbd>') &&
-  normalizedIndex.includes('<kbd>v</kbd>') &&
+  /<kbd(?:\s[^>]*)?>c<\/kbd>/.test(normalizedIndex) &&
+  !/<kbd(?:\s[^>]*)?>q<\/kbd>/.test(normalizedIndex) &&
+  /<kbd(?:\s[^>]*)?>v<\/kbd>/.test(normalizedIndex) &&
   normalizedIndex.includes('mêlée'),
   'Interface : six emplacements, capacité C et mêlée documentés'
 );

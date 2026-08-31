@@ -47,7 +47,7 @@ await check('CSP sans scripts ni cadres externes', () => {
   assert.ok(!/unsafe-inline|unsafe-eval/.test(csp));
   return csp;
 });
-await check('Version de production 1.2.0', async () => {
+await check('Version de production attendue', async () => {
   const expected = JSON.parse(await readFile(path.join(root, 'version.json'), 'utf8'));
   const response = await fetch(new URL('version.json', origin), { signal:AbortSignal.timeout(15000) });
   const actual = await response.json();

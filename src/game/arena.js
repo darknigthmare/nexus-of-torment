@@ -546,10 +546,28 @@
       return best;
     }
 
+    _stationHasBenefit(station) {
+      const game=this.game,player=game.player;
+      if(station.type==='ammo'){
+        return [...player.unlockedWeapons].some(id=>{
+          const state=game.weapons.states[id];
+          const capacity=Math.round(D.WEAPONS[id].reserve*game.weapons.metaReserveMul);
+          return !state || state.reserve<capacity;
+        });
+      }
+      if(station.type==='med')return (game.currentModifier?.healingRate??1)>0 && (player.health<player.maxHealth || player.corruption>0);
+      return true;
+    }
+
     activateStation(station) {
       const game=this.game, player=game.player;
       if(!station || station.cooldown>0) return false;
       if(station.type==='armory' && player.unlockedWeapons.has(station.weapon)) return false;
+      if(!this._stationHasBenefit(station)){
+        game.ui.toast(this.stationPrompt(station).title,'Aucune essence dépensée.');
+        game.audio.ui('error');
+        return false;
+      }
       if(player.essence<station.cost){ game.ui.toast('RESSOURCES INSUFFISANTES',`${station.cost} essence requise`,'error'); game.audio.ui('error'); return false; }
       player.essence-=station.cost;
       if(station.type==='shock'){
@@ -582,6 +600,7 @@
       if(!station) return null;
       if(station.type==='armory' && this.game.player.unlockedWeapons.has(station.weapon)) return { title:'ARME DÉJÀ ACQUISE', cost:'' };
       if(station.cooldown>0) return { title:'SYSTÈME EN RECHARGE', cost:`${station.cooldown.toFixed(1)} s` };
+      if(!this._stationHasBenefit(station))return { title:station.type==='ammo'?'RÉSERVES DÉJÀ PLEINES':'ÉTAT VITAL STABLE', cost:'' };
       if(station.type==='armory') return { title:`DÉVERROUILLER ${D.WEAPONS[station.weapon].name}`, cost:`◆ ${station.cost}` };
       const def=D.STATIONS[station.type];
       return { title:def.name, cost:`◆ ${station.cost}` };

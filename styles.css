@@ -393,6 +393,20 @@ body.reduced-motion #scanlines { display: none; }
   .upgrade-cards { max-height: 62dvh; }
 }
 
+/* Affectations lisibles, sans déplacer le dialogue ni piéger son focus. */
+.bindings-entry { grid-column: 1 / -1; }
+.bindings-shell { width: min(760px, 94vw); }
+.bindings-help { color: #d3c3bd; font-size: 12px; line-height: 1.6; }
+.bindings-status { min-height: 3em; color: #ffdbb0; font-size: 12px; line-height: 1.5; }
+.bindings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.binding-button { min-height: 48px; white-space: normal; overflow-wrap: anywhere; text-align: left; line-height: 1.5; padding: 12px; }
+.binding-button[aria-pressed="true"] { border-color: var(--cyan); background: #123032; }
+.bindings-capture { padding: 16px; border: 1px dashed var(--line); color: #c1a8a7; text-align: center; font-size: 11px; }
+.bindings-capture.listening { border-color: var(--cyan); color: #d4faf9; background: #123032; }
+.bindings-shell button:disabled { opacity: .45; cursor: not-allowed; }
+.weapon-slot { min-width: 28px; width: auto; padding-inline: 5px; }
+@media (max-width: 560px) { .bindings-grid { grid-template-columns: 1fr; } }
+
 /* Illustration originale du dossier ; le combat conserve son rendu 3D temps réel. */
 .menu-screen {
   place-items: start center;

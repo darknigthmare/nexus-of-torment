@@ -34,6 +34,27 @@ export function shellRevision(entries) {
   return hash.digest('hex');
 }
 
+export function shellIntegrity(entries) {
+  const integrity = {};
+  for (const entry of [...entries].sort((a, b) => a.relative < b.relative ? -1 : a.relative > b.relative ? 1 : 0)) {
+    if (entry.relative === 'sw.js') continue; // Le worker contient ce mapping : pas d’auto-référence.
+    const digest = createHash('sha256').update(canonicalFileBytes(entry.relative, entry.bytes)).digest('base64');
+    integrity['./' + entry.relative] = 'sha256-' + digest;
+  }
+  if (!integrity['./index.html']) throw new Error('Index absent du mapping d’intégrité.');
+  integrity['./'] = integrity['./index.html'];
+  return integrity;
+}
+
+export function stampServiceWorker(source, cacheVersion, integrity) {
+  const declaration = /^const CACHE_VERSION = ['"][^'"]+['"];[ \t]*$/m;
+  const integrityDeclaration = /^const SHELL_INTEGRITY = null;[ \t]*$/m;
+  if (!declaration.test(source)) throw new Error('Déclaration CACHE_VERSION absente du service worker.');
+  if (!integrityDeclaration.test(source)) throw new Error('Déclaration SHELL_INTEGRITY absente du service worker.');
+  return source.replace(declaration, "const CACHE_VERSION = '" + cacheVersion + "';")
+    .replace(integrityDeclaration, 'const SHELL_INTEGRITY = ' + JSON.stringify(integrity) + ';');
+}
+
 export async function readBuildFiles(directory, prefix = '') {
   const entries = [];
   for (const item of await readdir(path.join(directory, prefix), { withFileTypes:true })) {
@@ -60,14 +81,12 @@ export async function build() {
   const entries = await readBuildFiles(output);
   const revision = shellRevision(entries);
   const cacheVersion = 'nexus-of-torment-build-' + revision;
-  const declaration = /^const CACHE_VERSION = ['"][^'"]+['"];[ \t]*$/m;
+  const integrity = shellIntegrity(entries);
   let bytes = 0;
   for (const entry of entries) {
     let content = canonicalFileBytes(entry.relative, entry.bytes);
     if (entry.relative === 'sw.js') {
-      const source = content.toString('utf8');
-      if (!declaration.test(source)) throw new Error('Déclaration CACHE_VERSION absente du service worker.');
-      content = Buffer.from(source.replace(declaration, "const CACHE_VERSION = '" + cacheVersion + "';"), 'utf8');
+      content = Buffer.from(stampServiceWorker(content.toString('utf8'), cacheVersion, integrity), 'utf8');
     }
     if (!content.equals(entry.bytes)) await writeFile(path.join(output, entry.relative), content);
     bytes += content.length;

@@ -585,12 +585,15 @@
       this.velocity.x=damp(this.velocity.x,dir.x*speed,rate,dt);
       this.velocity.z=damp(this.velocity.z,dir.z*speed,rate,dt);
     }
+    _hasContactLine() {
+      const player=this.game.player;
+      const origin=new Vec3(this.position.x,this.position.y+Math.min(this.height*.55,1.4),this.position.z);
+      const target=new Vec3(player.position.x,player.position.y+1.05,player.position.z);
+      return !this.game.arena.lineBlocked(origin,target);
+    }
     _melee(distanceXZ) {
       if(distanceXZ<=this.config.attackRange+this.game.player.radius && this.attackTimer<=0){
-        const player=this.game.player;
-        const origin=new Vec3(this.position.x,this.position.y+Math.min(this.height*.55,1.4),this.position.z);
-        const target=new Vec3(player.position.x,player.position.y+1.05,player.position.z);
-        if(this.game.arena.lineBlocked(origin,target))return false;
+        if(!this._hasContactLine())return false;
         this.attackTimer=this.config.attackCooldown * (this.buffTimer > 0 ? .75 : 1);
         this.attackPulse=1;
         this.game.damagePlayer(this.damage,this.position,this.type === 'choir' ? .035 : .012);
@@ -640,7 +643,7 @@
       }else if(this.state==='charge'){
         this.stateTimer-=dt;
         this._move(this.chargeDirection,speed*5.2,dt,18);
-        if(distance<this.radius+this.game.player.radius+1){this.game.damagePlayer(this.damage*1.35,this.position,.02);this.stateTimer=0;}
+        if(distance<this.radius+this.game.player.radius+1 && this._hasContactLine()){this.game.damagePlayer(this.damage*1.35,this.position,.02);this.stateTimer=0;}
         if(this.stateTimer<=0){this.state='seek';this.abilityTimer=this.config.abilityCooldown;}
       }else{
         this._move(dir,speed,dt);
@@ -654,7 +657,7 @@
         if(this.stateTimer<=0){this.state='lunge';this.stateTimer=.58;this.chargeDirection.copy(dir);this.game.audio.enemy('scream',this.position,this.game.player.position,this.game.camera.yaw);}
       }else if(this.state==='lunge'){
         this.stateTimer-=dt;this._move(this.chargeDirection,speed*3.35,dt,18);
-        if(distance<this.radius+this.game.player.radius+.8){
+        if(distance<this.radius+this.game.player.radius+.8 && this._hasContactLine()){
           this.game.damagePlayer(this.damage*1.28,this.position,.028);
           this.game.player.slow(.35,1.1);
           this.stateTimer=0;
@@ -729,12 +732,14 @@
       if(this.state==='slamWindup'){
         this.stateTimer-=dt;this.velocity.scale(.6);
         if(this.stateTimer<=0){
-          this.game.bossSlam(this.position,this.bossPhase);
+          // Référence conservée : Gardien standard, difficulté instable, vague 5 (facteur 1.1).
+          // Les facteurs difficulté/vague/anomalie/élite sont déjà présents une seule fois dans damage.
+          this.game.bossSlam(this.position,this.bossPhase,this.damage/(this.config.damage*1.1));
           this.state='seek';this.abilityTimer=5.8-this.bossPhase*.7;
         }
       }else if(this.state==='charge'){
         this.stateTimer-=dt;this._move(this.chargeDirection,speed*4.1,dt,18);
-        if(distance<2.8){this.game.damagePlayer(this.damage*1.35,this.position,.045);this.stateTimer=0;}
+        if(distance<2.8 && this._hasContactLine()){this.game.damagePlayer(this.damage*1.35,this.position,.045);this.stateTimer=0;}
         if(this.stateTimer<=0){this.state='seek';this.abilityTimer=4.5;}
       }else{
         this._move(dir,speed,dt,7);

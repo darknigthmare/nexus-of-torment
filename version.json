@@ -1,6 +1,6 @@
 {
   "name": "Nexus of Torment",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "buildDate": "2026-08-31",
   "runtime": "WebGL2 + Web Audio",
   "dependencies": 0,

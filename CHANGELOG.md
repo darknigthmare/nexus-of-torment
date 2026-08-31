@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.1 — 2026-08-31 — Commandes et continuité protégées
+
+- Personnalisation de vingt actions clavier/souris, validation des conflits, réinitialisation confirmée et indications de HUD/briefing actualisées. Les commandes tactiles restent indépendantes.
+- Libération des entrées après changement de focus, clics de menu exclus du combat, maintien tactile correct avec plusieurs doigts.
+- Sauvegarde périmée détectée avant écriture et lors d’un événement inter-onglets : pause protégée, export du brouillon et rechargement confirmé. Les formats futurs restent en lecture seule, avec copie originale exportable.
+- État hors ligne et disponibilité d’installation visibles dans les réglages ; aucune installation annoncée sur la seule acceptation du dialogue.
+- Réparation complète du cache avec empreintes SRI vérifiées par Fetch : un module différent ou un téléchargement incomplet ne produit jamais un mélange de versions.
+- Charges du Broyeur, de l’Écorché et du Gardien arrêtées par les couverts ; slam aligné sur difficulté/vague sans double facteur.
+- Stations sans achat inutile quand les réserves ou soins sont déjà au maximum ; orientation de reprise conservée après plusieurs tours.
+- Contrats supplémentaires de commandes, stockage/PWA et gameplay ; [détail du correctif gameplay](docs/GAMEPLAY_POLISH_1.2.1.md). Les preuves et limites courantes sont dans [le rapport QA](docs/QA_REPORT.md).
+
 ## 1.2.0 — 2026-08-31 — Liturgie nerveuse
 
 ### Campagne et rythme de survie

@@ -12,6 +12,13 @@
   const RUN_MODES = Object.freeze({ campaign:true, endless:true });
   const ownedId = (map, id) => typeof id === 'string' && Boolean(map) && Object.hasOwn(map, id);
   const ownValue = (map, id, fallback = 0) => map && Object.hasOwn(map, id) ? map[id] : fallback;
+  function normalizedYaw(value) {
+    const yaw = Number(value);
+    if (!Number.isFinite(yaw)) return Math.PI;
+    // Garder les angles canoniques bit pour bit : un nouvel atan2 peut sinon
+    // créer une fausse réparation lors de la comparaison stricte du dossier.
+    return yaw >= -Math.PI && yaw <= Math.PI ? yaw : Math.atan2(Math.sin(yaw), Math.cos(yaw));
+  }
   function safeMetaLevels(source) {
     const levels = {};
     for (const [id, definition] of Object.entries(D.META_UPGRADES)) {
@@ -37,7 +44,8 @@
     enemyContrast: false,
     subtitles: true,
     guidedHints: true,
-    timedUpgrades: false
+    timedUpgrades: false,
+    bindings: Input.defaultBindings()
   });
 
   const DEFAULT_SAVE = {
@@ -189,6 +197,7 @@
     }
 
     applySettings() {
+      this.settings.bindings = { ...this.input.setBindings(this.settings.bindings).bindings };
       this.camera.fov = clamp(Number(this.settings.fov) || 82, 65, 105);
       this.renderer.renderScale = clamp(Number(this.settings.renderScale) || 1, .55, 1.5);
       this.audio.setVolume?.(clamp(Number(this.settings.volume) || 0, 0, 1));
@@ -878,7 +887,7 @@
           maxGrenades:this.player.maxGrenades, grenades:this.player.grenades,
           abilityCooldown:this.player.abilityCooldown,
           position:{ x:this.player.position.x, y:this.player.position.y, z:this.player.position.z },
-          yaw:this.camera.yaw,
+          yaw:normalizedYaw(this.camera.yaw),
           unlockedWeapons:[...this.player.unlockedWeapons],
           modifiers:{ ...this.player.modifiers },
           upgradeStacks:{ ...this.player.upgradeStacks }
@@ -924,6 +933,7 @@
         maxZ:Number.isFinite(Number(sectorBounds?.maxZ)) ? Number(sectorBounds.maxZ) - playerRadius : 24
       };
       const player = raw.player && typeof raw.player === 'object' ? raw.player : {};
+      const yaw = normalizedYaw(player.yaw);
       const statsSource = raw.stats && typeof raw.stats === 'object' ? raw.stats : {};
       const statKeys = Object.keys(this._newStats());
       const stats = {};
@@ -984,7 +994,7 @@
             y:number(player.position?.y, 0, 8, 0),
             z:number(player.position?.z, positionBounds.minZ, positionBounds.maxZ, 10)
           },
-          yaw:number(player.yaw, -Math.PI * 4, Math.PI * 4, Math.PI),
+          yaw,
           unlockedWeapons, modifiers, upgradeStacks
         },
         weapons:{
@@ -1447,11 +1457,12 @@
       return true;
     }
 
-    bossSlam(position, phase = 1) {
+    bossSlam(position, phase = 1, damageScale = 1) {
       const radius = this.bossSlamRadius(phase);
       const distance = this.player.position.distanceToXZ(position);
+      const scale = Number.isFinite(damageScale) ? Math.max(0, damageScale) : 1;
       if (distance < radius) {
-        this.damagePlayer((24 + phase*7) * lerp(1,.35,distance/radius), position, .025 * phase);
+        this.damagePlayer((24 + phase*7) * scale * lerp(1,.35,distance/radius), position, .025 * phase);
         const knock = this.player.position.clone().sub(position).normalizeXZ();
         this.player.hitVelocity.addScaled(knock, 8 + phase*2);
       }
