@@ -3,8 +3,8 @@
   "product": "NEXUS OF TORMENT — Liturgie nerveuse",
   "version": "1.2.0",
   "target": "local-build",
-  "executedAt": "2026-08-31T18:16:54.695Z",
-  "url": "http://127.0.0.1:53844/",
+  "executedAt": "2026-08-31T18:42:19.374Z",
+  "url": "http://127.0.0.1:61505/",
   "browser": {
     "engine": "Chromium",
     "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -15,7 +15,8 @@
       "--enable-gpu",
       "--ignore-gpu-blocklist",
       "--disable-dev-shm-usage"
-    ]
+    ],
+    "serviceWorkerNetworkEvents": true
   },
   "checks": [
     {
@@ -42,7 +43,7 @@
         "mode": "campaign",
         "sector": "sanctum",
         "difficulty": "unstable",
-        "cameraYaw": -0.31006591281597146,
+        "cameraYaw": -0.3318635425314451,
         "webgl2": true,
         "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "renderScale": 1,
@@ -146,10 +147,10 @@
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 285,
-        "triangles": 8920,
-        "enemies": 4,
-        "queued": 7
+        "drawCalls": 293,
+        "triangles": 9084,
+        "enemies": 5,
+        "queued": 6
       }
     },
     {
@@ -167,10 +168,10 @@
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 285,
-        "triangles": 8920,
-        "enemies": 4,
-        "queued": 7
+        "drawCalls": 293,
+        "triangles": 9084,
+        "enemies": 5,
+        "queued": 6
       }
     },
     {
@@ -402,7 +403,7 @@
       "name": "Service worker et cache installés",
       "passed": true,
       "details": {
-        "scope": "http://127.0.0.1:53844/",
+        "scope": "http://127.0.0.1:61505/",
         "controlled": true,
         "caches": [
           "nexus-of-torment-build-b31f01ca2b6e051a0e7677955325fea9c3c2a2c80518f6e88c6593ed870f3fb8"
@@ -418,7 +419,7 @@
         "mode": "campaign",
         "sector": "sanctum",
         "difficulty": "unstable",
-        "cameraYaw": -0.3116731094843922,
+        "cameraYaw": -0.3092575103588301,
         "webgl2": true,
         "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "renderScale": 1,
@@ -485,10 +486,10 @@
         "renderScale": 1,
         "buffer": "682x1477",
         "fallbackHidden": true,
-        "drawCalls": 236,
-        "triangles": 7408,
-        "enemies": 0,
-        "queued": 12
+        "drawCalls": 247,
+        "triangles": 7944,
+        "enemies": 1,
+        "queued": 11
       }
     },
     {
@@ -640,8 +641,8 @@
   "performance": {
     "viewport": "1280x720",
     "averageFps": 60,
-    "drawCalls": 285,
-    "triangles": 8920,
+    "drawCalls": 293,
+    "triangles": 9084,
     "samples": [
       60,
       60,
@@ -655,7 +656,7 @@
   "expectedRecoverySignals": [
     {
       "type": "recovery-console",
-      "message": "Error: Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.\n    at HTMLCanvasElement.<anonymous> (http://127.0.0.1:53844/src/main.js:56:35)",
+      "message": "Error: Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.\n    at HTMLCanvasElement.<anonymous> (http://127.0.0.1:61505/src/main.js:56:35)",
       "expectedOffline": false,
       "expectedRecovery": true
     }

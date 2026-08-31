@@ -49,6 +49,8 @@ Le serveur de QA reproduit la redirection Vercel `/index.html → /`. Cela a ré
 
 La QA coupe réellement le serveur, recharge la PWA, vérifie WebGL puis un cache-miss contrôlé en 503. Tous les modules connus proviennent de la même révision installée. Le nouveau worker ne prend pas le contrôle des anciens onglets de force ; il faut fermer les onglets du jeu pour appliquer sa mise à jour.
 
+Pour une URL de production, Playwright 1.55 nécessite l’activation de son inspection réseau des service workers pour que `setOffline(true)` les déconnecte aussi. Le banc active cette option uniquement dans son processus, puis exige qu’un fetch direct du worker, sans cache HTTP, échoue avant le redémarrage hors ligne. Un 404 réellement obtenu de Vercel ne peut donc plus être confondu avec une coupure réseau. Le jeu et le réseau de la machine ne sont pas modifiés par ce réglage de test.
+
 ### Build
 
 Dix-huit fichiers statiques, dont l’illustration originale, sont publiés. Les textes sont normalisés en LF ; les binaires restent intacts. L’empreinte SHA-256 du shell inclut chemins, longueurs, contenu et SW source, puis est injectée dans le nom du cache de `dist/sw.js`. Le SW source n’est pas modifié. Deux builds identiques et l’invalidation de révision après changement sont vérifiés.

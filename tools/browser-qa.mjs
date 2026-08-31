@@ -9,6 +9,10 @@ import { auditMenu, auditPause, auditMobileMenu, auditMobileCombat, auditRecover
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let url = process.argv[2] || process.env.NEXUS_QA_URL || null;
 const explicitUrl = Boolean(url);
+// Playwright 1.55 leaves worker networking unmanaged without this opt-in:
+// context.setOffline(true) would only disconnect the page, not its service worker.
+// This affects the isolated QA process only, never the game or the host network.
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = '1';
 const chrome = process.env.NEXUS_CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const headless = process.env.NEXUS_QA_HEADLESS !== 'false';
 const softwareRenderer = process.env.NEXUS_QA_SOFTWARE_RENDERER === '1';
@@ -33,7 +37,7 @@ const report = {
   schemaVersion:1, product:'NEXUS OF TORMENT — Liturgie nerveuse', version:'1.2.0',
   target:explicitUrl ? 'production-url' : 'local-build',
   executedAt:new Date().toISOString(), url,
-  browser:{ engine:'Chromium', executable:chrome, headless, softwareRenderer, launchArgs },
+  browser:{ engine:'Chromium', executable:chrome, headless, softwareRenderer, launchArgs, serviceWorkerNetworkEvents:true },
   checks:[], failures:[], evidence:{
     desktopMenu:evidencePath('v1.2-desktop-menu.png'),
     desktopGameplay:evidencePath('v1.2-desktop-gameplay.png'),
@@ -419,7 +423,26 @@ try {
   if (qaServer) {
     await new Promise(resolve => qaServer.close(resolve));
     qaServer = null;
-  } else await desktop.setOffline(true);
+  } else {
+    await desktop.setOffline(true);
+    // A direct worker fetch bypasses its own fetch handler and HTTP cache.
+    // Prove that Vercel really is unreachable before testing the cached reboot.
+    const workerNetwork = await Promise.all(desktop.serviceWorkers().map(async worker => ({
+      worker:worker.url(),
+      ...await worker.evaluate(async () => {
+        try {
+          const response = await fetch('./version.json?qa-network-probe', {
+            cache:'no-store', signal:AbortSignal.timeout(7000)
+          });
+          return { blocked:false, status:response.status };
+        } catch (error) {
+          return { blocked:error.name === 'TypeError', error:error.name };
+        }
+      })
+    })));
+    verify('Coupure réseau confirmée dans le service worker',
+      workerNetwork.length > 0 && workerNetwork.every(result => result.blocked), workerNetwork);
+  }
   await page.reload({ waitUntil:'domcontentloaded', timeout:15000 });
   await ready(page);
   const offlineBoot = await snapshot(page);
