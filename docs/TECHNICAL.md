@@ -1,4 +1,4 @@
-# Documentation technique — build 1.2.0
+# Documentation technique — build 1.3.0
 
 ## 1. Principes
 
@@ -15,10 +15,14 @@ Le jeu fonctionne sans bundler et sans dépendance d’exécution. Les scripts c
 Ordre de chargement :
 
 ```text
-math → engine → audio → data → arena → entities → weapons → ui → game → main
+math → engine → audio → data → story → progression → arena → entities → weapons → ui → game → main
 ```
 
 ## 2. Pipeline de rendu
+
+`story.js` contient des données originales gelées : chapitres, missions, objectifs, décisions, archives et fins. `progression.js` est un réducteur pur à clés fermées, sans stockage ni temps implicite ; le jeu enregistre son résultat et ses récompenses dans la même écriture SaveStore.
+
+La racine de sauvegarde est en version 3, le checkpoint en version 2. Les anciens checkpoints v1 sectoriels/sans fin sont migrés explicitement avant comparaison canonique ; aucune clé inconnue n’est acceptée sous prétexte de migration. Le mode Histoire sérialise les deux décisions et l’identifiant d’une décision en attente ; zones et objets temporaires sont reconstruits depuis les définitions. Les archives et épilogues sont persistants au niveau carrière. L’ancien client v2 protège le dossier v3 comme format futur.
 
 `src/core/engine.js` fournit :
 

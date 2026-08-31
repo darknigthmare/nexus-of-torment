@@ -10,7 +10,7 @@ const assert = { ...nodeAssert, equal(actual, expected, message) { nodeAssert.ok
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const scripts = ['src/core/math.js', 'src/core/engine.js', 'src/game/data.js', 'src/game/ui.js'].map(relative => [relative, fs.readFileSync(path.join(root, relative), 'utf8')]);
+const scripts = ['src/core/math.js', 'src/core/engine.js', 'src/game/data.js', 'src/game/story.js', 'src/game/progression.js', 'src/game/ui.js'].map(relative => [relative, fs.readFileSync(path.join(root, relative), 'utf8')]);
 // A deliberately small DOM for behavior contracts. Markup comes from index.html;
 // real UIManager/SaveStore code runs unchanged. Layout, downloads and browser
 // accessibility semantics still require the separate real-browser QA.
@@ -193,5 +193,52 @@ await test('Commandes : aide de déplacement, arme et prochaine vague suit les t
 
 await test('PWA : erreur technique reste hors du message joueur et cache prêt reste distingué', () => { const f=fixture(); f.window.nexusPWA={status:{error:'Cannot read properties of undefined'}}; f.ui._syncPWAStatus(); assert.match(f.$('pwa-status').textContent,/autorisations du navigateur/); assert.doesNotMatch(f.$('pwa-status').textContent,/undefined|Cannot read/); f.window.nexusPWA.status.offlineReady=true; f.ui._syncPWAStatus(); assert.match(f.$('pwa-status').textContent,/déjà prêt hors ligne/); });
 
+await test('Histoire : mode initial et secteur verrouillé explicitent le trajet', () => { const f=fixture(); assert.equal(f.ui.selectedMode,'story'); assert.equal(f.$('sector').disabled,true); assert.match(f.$('mission-summary').textContent,/Sanctuaire.*Nef.*Ossuaire/); f.$('mode').value='campaign'; f.$('mode').dispatchEvent({type:'change'}); assert.equal(f.$('sector').disabled,false); });
+await test('Histoire : choix affichent bénéfice et coût exacts sans compte à rebours', () => { const f=fixture(); f.game.state='story-choice'; let selected=''; const choice=f.NT.Story.getChoice(3); f.ui.showStoryChoice(choice,id=>{selected=id;}); f.flushRaf(); assert.equal(f.document.activeElement,f.$('story-choice-options').querySelector('button')); const buttons=f.$('story-choice-options').querySelectorAll('button'); assert.equal(buttons.length,2); assert.match(buttons[0].textContent,/30 armure/); assert.match(buttons[0].textContent,/15 santé/); f.ui.update(999); assert.equal(selected,''); buttons[1].click(); assert.equal(selected,'listen'); });
+await test('Histoire : Tab reste dans les décisions et Échap ne décide jamais', () => { const f=fixture(); f.game.state='story-choice'; let selected=0; f.ui.showStoryChoice(f.NT.Story.getChoice(6),()=>selected++); f.flushRaf(); f.$('story-choice-settings').focus(); const event={type:'keydown',key:'Tab'}; f.window.dispatchEvent(event); assert.equal(event.defaultPrevented,true); assert.equal(f.document.activeElement,f.$('story-choice-options').querySelector('button')); f.window.dispatchEvent({type:'keydown',key:'Escape',code:'Escape'}); assert.equal(selected,0); assert.equal(f.$('story-choice-screen').classList.contains('hidden'),false); });
+await test('Journal : transmissions et fins futures restent masquées', () => { const f=fixture(); f.game.save.data.progression=f.NT.Progression.create(); f.ui.renderCodex('journal'); const text=f.$('codex-content').textContent; assert.match(text,/Arrêt de travail/); assert.doesNotMatch(text,/Les trois relais|Confinement sans témoin|Les noms sortent/); assert.match(text,/Transmission non reçue/); });
+await test('Journal : une archive collectée devient consultable', () => { const f=fixture(); f.game.save.data.progression=f.NT.Progression.apply(f.NT.Progression.create(),{type:'archive',id:'shift_07'}).data; f.ui.renderCodex('journal'); assert.match(f.$('codex-content').textContent,/Feuille de quart 07/); assert.match(f.$('codex-content').textContent,/Nous avons fermé trois fois/); });
+await test('Accomplissements : vingt objectifs et prochaine action sont visibles', () => { const f=fixture(); f.game.save.data.progression=f.NT.Progression.create(); f.ui.renderCodex('completion'); assert.equal(f.$('codex-content').querySelectorAll('.completion-card').length,20); assert.match(f.$('codex-content').textContent,/0 \/ 20 accomplissements/); assert.match(f.$('codex-content').textContent,/Prochain objectif/); });
+await test('Journal en pause : fermeture ne relance pas les ennemis', () => { const f=fixture(); f.game.state='paused'; f.ui.showPause(); f.$('pause-journal').focus(); f.$('pause-journal').click(); f.flushRaf(); assert.equal(f.ui.currentCodexTab,'journal'); f.ui.closeModal(f.ui.codexScreen); assert.equal(f.game.state,'paused'); assert.equal(f.$('pause-screen').classList.contains('hidden'),false); });
+await test('Victoire : épilogue issu des décisions et nettoyé pour le mode sectoriel', () => { const f=fixture(); f.ui.showVictory({outcome:'victory',sectors:3,storyEnding:f.NT.Story.getEnding({protocol:'listen',testimony:'preserve'})}); assert.match(f.ui.epilogue.textContent,/Les noms sortent/); assert.equal(f.$('victory-sectors').textContent,'3'); f.ui.showVictory({outcome:'victory',sectors:1}); assert.equal(f.ui.epilogue.classList.contains('hidden'),true); assert.equal(f.ui.epilogue.textContent,''); });
+await test('Décision : journal relisible puis retour au choix et focus sans effet', () => { const f=fixture(); f.game.state='story-choice'; let chosen=0; f.ui.showStoryChoice(f.NT.Story.getChoice(3),()=>chosen++); f.flushRaf(); f.$('story-choice-journal').focus(); f.$('story-choice-journal').click(); f.flushRaf(); assert.equal(f.ui.currentCodexTab,'journal'); assert.equal(f.ui.activeModal,f.ui.codexScreen); f.ui.closeModal(f.ui.codexScreen); assert.equal(f.game.state,'story-choice'); assert.equal(chosen,0); assert.equal(f.document.activeElement,f.$('story-choice-journal')); });
+await test('Journal : attribution des archives et bilan de fin conservés', () => { const f=fixture(); const p=f.NT.Progression.create(); p.archives.sanctifier_order=true; p.endings.scar=true; f.game.save.data.progression=p; f.ui.renderCodex('journal'); const text=f.$('codex-content').textContent; assert.ok(text.includes(f.NT.Story.ARCHIVES.find(a=>a.id==='sanctifier_order').speaker)); assert.ok(text.includes(f.NT.Story.ENDINGS.scar.journal)); });
+for (const blocked of ['persistenceBlocked','graphicsUnavailable']) await test('Greffe : '+blocked+' refuse clic, clavier et délai sans consommer le choix', () => {
+  const f=fixture(); f.game.state='upgrade'; f.game.settings.timedUpgrades=true; let chosen=0;
+  f.ui.showUpgrades(f.NT.Data.UPGRADES.slice(0,3),24,()=>chosen++);
+  const callback=f.ui.upgradeCallback, before=f.game.save.exportJSON(), disk=f.disk.get(f.game.save.key);
+  f.game[blocked]=true;
+  f.$('upgrade-cards').querySelector('button').click();
+  f.window.dispatchEvent({type:'keydown',code:'Digit2',key:'2'}); f.ui.update(999);
+  assert.equal(chosen,0); assert.equal(f.ui.upgradeCallback,callback); assert.equal(f.ui.upgradeTimer,24);
+  assert.equal(f.game.state,'upgrade'); assert.equal(f.$('upgrade-screen').classList.contains('hidden'),false);
+  assert.equal(f.game.save.exportJSON(),before); assert.equal(f.disk.get(f.game.save.key),disk);
+  f.game[blocked]=false; f.ui.selectUpgrade(0); assert.equal(chosen,1); assert.equal(f.ui.upgradeCallback,null);
+});
+await test('Greffe : conflit exportable depuis les réglages et retour exact sans choix', async () => {
+  const f=fixture(); f.game.state='upgrade'; let chosen=0;
+  f.ui.showUpgrades(f.NT.Data.UPGRADES.slice(0,3),24,()=>chosen++);
+  f.game.persistenceBlocked=true; f.game.save.status.conflict=true; f.ui._syncSaveStatus();
+  const before=f.game.save.exportJSON(), disk=f.disk.get(f.game.save.key), callback=f.ui.upgradeCallback;
+  f.$('upgrade-settings').focus(); f.$('upgrade-settings').click(); f.flushRaf();
+  assert.equal(f.ui.activeModal,f.ui.settingsScreen); assert.equal(f.$('save-import').disabled,true);
+  assert.equal(f.$('save-reload').classList.contains('hidden'),false); f.$('save-export').click();
+  assert.equal(await f.objectUrls[0].text(),before); assert.equal(f.document.downloads.length,1);
+  f.ui.closeModal(f.ui.settingsScreen); f.flushRaf();
+  assert.equal(f.game.state,'upgrade'); assert.equal(f.game.persistenceBlocked,true); assert.equal(chosen,0);
+  assert.equal(f.ui.upgradeCallback,callback); assert.equal(f.$('upgrade-screen').classList.contains('hidden'),false);
+  assert.equal(f.document.activeElement,f.$('upgrade-settings'));
+  assert.equal(f.game.save.exportJSON(),before); assert.equal(f.disk.get(f.game.save.key),disk);
+});
+await test('Greffe : réglages suspendent le délai et les raccourcis puis rendent le temps restant', () => {
+  const f=fixture(); f.game.state='upgrade'; f.game.settings.timedUpgrades=true; let chosen=0;
+  f.ui.showUpgrades(f.NT.Data.UPGRADES.slice(0,3),24,()=>chosen++); f.ui.update(5);
+  f.$('upgrade-settings').focus(); f.$('upgrade-settings').click(); f.flushRaf();
+  f.ui.update(999); f.window.dispatchEvent({type:'keydown',code:'Digit1',key:'1'});
+  assert.equal(chosen,0); assert.equal(f.ui.upgradeTimer,19);
+  f.ui.closeModal(f.ui.settingsScreen); f.ui.update(18.5);
+  assert.equal(chosen,0); assert.equal(f.ui.upgradeTimer,.5);
+  f.ui.update(.6); assert.equal(chosen,1); assert.equal(f.ui.upgradeCallback,null);
+});
 console.log(`\nContrats UI : ${passed}/${passed+failures.length} contrôles réussis.`);
 if (failures.length) process.exitCode = 1;

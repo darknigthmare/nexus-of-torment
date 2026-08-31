@@ -112,7 +112,7 @@ Réinjecte une fraction de la réserve maximale de chaque arme possédée.
 
 ### Purification médicale
 
-Répare les tissus, stabilise l’armure et retire une partie des informations sensorielles imposées par le Nexus.
+Répare les tissus et retire une partie des informations sensorielles imposées par le Nexus. Elle ne restaure pas l’armure.
 
 ### Armurerie Spine Ripper
 

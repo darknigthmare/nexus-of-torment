@@ -1,6 +1,6 @@
 # Game Design Document — Nexus of Torment
 
-**Version :** 1.2.0 « Liturgie nerveuse »
+**Version :** 1.3.0 « Liturgie nerveuse »
 **Genre :** FPS 3D / horde survival horror / progression roguelite  
 **Mode :** solo  
 **Plateforme de cette édition :** navigateur desktop et mobile WebGL 2, PWA hors ligne
@@ -22,9 +22,10 @@ La violence est stylisée et procédurale. Le jeu privilégie l’identité des 
 
 ### 2.1 Déploiement
 
-Le joueur choisit une doctrine, une difficulté, un secteur d’entrée et l’un des deux modes :
+Le joueur choisit une doctrine, une difficulté et l’un des trois modes :
 
-- **Campagne — Liturgie nerveuse** : dix vagues, deux offices de boss, extraction et victoire ;
+- **Histoire — Les voix du Nœud** : dix offices dans trois secteurs successifs, deux décisions aux contreparties explicites, six archives facultatives et trois épilogues ;
+- **Intervention sectorielle** : dix vagues dans le secteur choisi, deux offices de boss, extraction et victoire ;
 - **Survie sans fin** : progression sans extraction finale.
 
 Il commence avec le WARD-9, Absolution, deux grenades et les bonus obtenus par la métaprogression.
@@ -33,13 +34,15 @@ Il commence avec le WARD-9, Absolution, deux grenades et les bonus obtenus par l
 
 Le directeur reçoit un budget dépendant de la vague et de la difficulté. Il sélectionne les castes déverrouillées selon leur coût et leur poids, ajoute une probabilité de variante élite puis mélange la file d’apparition. Un plafond dynamique limite les entités simultanées afin de conserver la lisibilité et les performances.
 
-Les vagues standards alternent trois familles d’objectif :
+Les vagues standards sectorielles alternent trois familles d’objectif :
 
 - **Purge** : éliminer toutes les signatures ;
 - **Maintien** : rester dans le sceau jusqu’à stabilisation, puis éliminer les survivants ;
 - **Chasse** : abattre en priorité les signatures marquées, puis purger le reste.
 
 Les renforts de maintien et de chasse empêchent l’objectif de se bloquer si une cible disparaît ou reste inaccessible. Les vagues multiples de cinq remplacent cette rotation par un objectif de boss.
+
+L’Histoire utilise une séquence scénarisée : purge, maintien, chasse, relais, Gardien, chasse, transport, maintien, purge, Archidiacre. Le relais de l’office 4 impose trois positions successives (2,5 secondes chacune). Le transport de l’office 7 se prend avec Interagir et se livre à la borne opposée (maintien de 3 secondes), avec une vitesse de déplacement multipliée par 0,78. Les deux objectifs possèdent des renforts limités puis une purge des survivants.
 
 ### 2.3 Combat
 
@@ -229,7 +232,7 @@ Contreparties :
 |---|---|
 | Surcharge électrique | Dégâts de zone sur les signatures proches, cooldown important |
 | Réquisition de munitions | Restaure une fraction des réserves des armes possédées |
-| Purification médicale | Santé, armure et réduction de Souillure |
+| Purification médicale | Santé et réduction de Souillure ; ne restaure pas l’armure |
 | Armurerie Spine Ripper | Déblocage à partir de la vague 3 |
 | Armurerie Cloueur | Déblocage à partir de la vague 5 |
 | Armurerie Vesper | Déblocage à partir de la vague 7 |
@@ -267,6 +270,8 @@ Le pool contient 20 greffes. Elles peuvent modifier :
 Les greffes possèdent un rang maximal et sont retirées du choix lorsqu’elles sont complètes.
 
 ### Métaprogression
+
+Depuis la 1.3, vingt accomplissements suivent les cinq objectifs, les deux boss, les extractions par secteur/doctrine/difficulté, les six archives, les trois fins et l’office 20 sans fin. Les 41 fragments de récompense au total sont attribués une seule fois par accomplissement. Aucun ancien score ne reconstitue une victoire inconnue. Une Histoire gagnée constitue une extraction de l’Ossuaire, pas trois extractions sectorielles fictives.
 
 Six améliorations persistent : santé, dégâts, armure, Essence de départ, résistance à la Souillure et réserve de munitions. Leur coût croît avec le niveau afin de maintenir une progression longue sans supprimer la difficulté initiale.
 

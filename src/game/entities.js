@@ -126,7 +126,7 @@
       const rightInput = (input.keyAny('KeyD','ArrowRight') ? 1 : 0) - (input.keyAny('KeyA','KeyQ','ArrowLeft') ? 1 : 0);
       const moving = forwardInput !== 0 || rightInput !== 0;
       const sprinting = input.keyAny('ShiftLeft','ShiftRight') && forwardInput > 0 && this.slowTimer <= 0;
-      const baseSpeed = this.classData.speed * this.modifiers.speedMul * (sprinting ? 1.48 : 1);
+      const baseSpeed = this.classData.speed * this.modifiers.speedMul * (sprinting ? 1.48 : 1) * (game.storyMoveSpeedMultiplier?.() ?? 1);
       const slow = this.slowTimer > 0 ? (1 - this.slowAmount) : 1;
       const speed = baseSpeed * slow;
 

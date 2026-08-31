@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
   "product": "NEXUS OF TORMENT — Liturgie nerveuse",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "target": "local-build",
-  "executedAt": "2026-08-31T19:32:57.747Z",
-  "url": "http://127.0.0.1:52417/",
+  "scope": "complete",
+  "executedAt": "2026-08-31T21:10:55.929Z",
+  "url": "http://127.0.0.1:54858/",
   "browser": {
     "engine": "Chromium",
     "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -43,7 +44,7 @@
         "mode": "campaign",
         "sector": "sanctum",
         "difficulty": "unstable",
-        "cameraYaw": -0.333476954451204,
+        "cameraYaw": -0.33105445355203333,
         "webgl2": true,
         "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "renderScale": 1,
@@ -56,12 +57,12 @@
       }
     },
     {
-      "name": "Menu complet: 3 classes, 4 difficultés, 2 modes, 3 secteurs",
+      "name": "Menu complet: 3 classes, 4 difficultés, 3 modes, 3 secteurs",
       "passed": true,
       "details": {
         "classes": 3,
         "difficulties": 4,
-        "modes": 2,
+        "modes": 3,
         "sectors": 3,
         "lang": "fr",
         "title": "NEXUS OF TORMENT"
@@ -73,7 +74,7 @@
       "details": {
         "classes": 3,
         "difficulties": 4,
-        "modes": 2,
+        "modes": 3,
         "sectors": 3,
         "lang": "fr",
         "title": "NEXUS OF TORMENT"
@@ -420,8 +421,8 @@
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 285,
-        "triangles": 8920,
+        "drawCalls": 284,
+        "triangles": 8800,
         "enemies": 4,
         "queued": 7
       }
@@ -441,8 +442,8 @@
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 285,
-        "triangles": 8920,
+        "drawCalls": 284,
+        "triangles": 8800,
         "enemies": 4,
         "queued": 7
       }
@@ -494,8 +495,8 @@
       "details": {
         "state": "playing",
         "wave": 1,
-        "distance": 0.5309355177900237,
-        "forward": 0.5309355177900237
+        "distance": 0.5314011631465796,
+        "forward": 0.5314011631465796
       }
     },
     {
@@ -799,10 +800,10 @@
       "name": "Service worker et cache installés",
       "passed": true,
       "details": {
-        "scope": "http://127.0.0.1:52417/",
+        "scope": "http://127.0.0.1:54858/",
         "controlled": true,
         "caches": [
-          "nexus-of-torment-build-51127196b3d5da943696052baf8014fd24c554998e728ecb53ea3b982a3205a0"
+          "nexus-of-torment-build-bac2e980672a3549bb70ae22b02fd3c2dd41d52a01031d779e3005bdb290adea"
         ]
       }
     },
@@ -815,7 +816,7 @@
         "mode": "campaign",
         "sector": "sanctum",
         "difficulty": "unstable",
-        "cameraYaw": -0.3076392301614371,
+        "cameraYaw": -0.30844913246794975,
         "webgl2": true,
         "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "renderScale": 1,
@@ -826,6 +827,10 @@
         "enemies": 0,
         "queued": 0
       }
+    },
+    {
+      "name": "Histoire et accomplissements chargés hors ligne",
+      "passed": true
     },
     {
       "name": "Cache-miss hors-ligne répond proprement en 503",
@@ -1274,7 +1279,7 @@
       "passed": true,
       "details": {
         "before": 0,
-        "after": 3,
+        "after": 2,
         "held": true
       }
     },
@@ -1439,7 +1444,7 @@
       "passed": true,
       "details": {
         "filename": "nexus-dossier-2026-08-31.json",
-        "bytes": 1229
+        "bytes": 2738
       }
     },
     {
@@ -1493,8 +1498,8 @@
       "passed": true,
       "details": {
         "status": 200,
-        "files": 17,
-        "revision": "nexus-of-torment-build-51127196b3d5da943696052baf8014fd24c554998e728ecb53ea3b982a3205a0"
+        "files": 19,
+        "revision": "nexus-of-torment-build-bac2e980672a3549bb70ae22b02fd3c2dd41d52a01031d779e3005bdb290adea"
       }
     },
     {
@@ -1503,7 +1508,7 @@
       "details": {
         "alteredRequests": 1,
         "status": 503,
-        "cachedFiles": 15
+        "cachedFiles": 17
       }
     },
     {
@@ -1511,7 +1516,579 @@
       "passed": true,
       "details": {
         "status": 200,
-        "count": 17
+        "count": 19
+      }
+    },
+    {
+      "name": "Histoire proposée avec trajet imposé et vingt accomplissements",
+      "passed": true
+    },
+    {
+      "name": "Journal neuf sans révéler les missions et fins futures",
+      "passed": true
+    },
+    {
+      "name": "Archives physiques du chapitre 1 récupérées avec E",
+      "passed": true
+    },
+    {
+      "name": "Décision affiche bénéfice, coût et lecture sans délai",
+      "passed": true
+    },
+    {
+      "name": "Décision : journal consultable sans choisir ni reprendre",
+      "passed": true
+    },
+    {
+      "name": "Décision : retour du journal avec focus restauré",
+      "passed": true
+    },
+    {
+      "name": "Clavier contenu dans la décision",
+      "passed": true
+    },
+    {
+      "name": "Échap ne choisit pas et ne reprend pas le combat",
+      "passed": true
+    },
+    {
+      "name": "Histoire / conflit : choix du protocole et checkpoint présents avant le second onglet",
+      "passed": true
+    },
+    {
+      "name": "Histoire / conflit : vraie écriture distante reçue sans remplacer le brouillon",
+      "passed": true
+    },
+    {
+      "name": "Histoire / conflit : clic réel sur le choix refusé sans coût, bonus ni faux combat figé",
+      "passed": true,
+      "details": {
+        "blocked": true,
+        "unchangedRuntime": true,
+        "unchangedMemory": true,
+        "unchangedDisk": true
+      }
+    },
+    {
+      "name": "Histoire / conflit : réglages et export accessibles, import toujours interdit",
+      "passed": true
+    },
+    {
+      "name": "Histoire / conflit : téléchargement exact du brouillon avant décision",
+      "passed": true,
+      "details": {
+        "filename": "nexus-dossier-2026-08-31.json",
+        "bytes": 4732
+      }
+    },
+    {
+      "name": "Histoire / conflit : retour au choix bloqué, checkpoint distant intact pour la reprise",
+      "passed": true,
+      "details": {
+        "peerErrors": []
+      }
+    },
+    {
+      "name": "Reprise au choix non résolu sans fausse réparation",
+      "passed": true
+    },
+    {
+      "name": "Décision conservée et intermission disponible · 0/3",
+      "passed": true
+    },
+    {
+      "name": "Archives physiques du chapitre 4 récupérées avec E",
+      "passed": true
+    },
+    {
+      "name": "Relais : trois positions distinctes dans la Nef",
+      "passed": true
+    },
+    {
+      "name": "Décision conservée et intermission disponible · 0/6",
+      "passed": true
+    },
+    {
+      "name": "Archives physiques du chapitre 7 récupérées avec E",
+      "passed": true
+    },
+    {
+      "name": "Transport réel via E et marche ralentie · containment",
+      "passed": true
+    },
+    {
+      "name": "Histoire complète assistée, trois secteurs et fin sealed · containment",
+      "passed": true,
+      "details": [
+        {
+          "wave": 1,
+          "type": "purge",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "issues": false
+        },
+        {
+          "wave": 2,
+          "type": "hold",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "checkpoint": 2,
+          "issues": false
+        },
+        {
+          "wave": 3,
+          "type": "hunt",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "checkpoint": 3,
+          "issues": false
+        },
+        {
+          "wave": 4,
+          "type": "relay",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 4,
+          "issues": false
+        },
+        {
+          "wave": 5,
+          "type": "boss",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 5,
+          "issues": false
+        },
+        {
+          "wave": 6,
+          "type": "hunt",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 6,
+          "issues": false
+        },
+        {
+          "wave": 7,
+          "type": "transport",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 7,
+          "issues": false
+        },
+        {
+          "wave": 8,
+          "type": "hold",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 8,
+          "issues": false
+        },
+        {
+          "wave": 9,
+          "type": "purge",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 9,
+          "issues": false
+        },
+        {
+          "wave": 10,
+          "type": "boss",
+          "sector": "ossuary",
+          "state": "victory",
+          "issues": false
+        }
+      ]
+    },
+    {
+      "name": "Épilogue affiché et persisté · seal/purge",
+      "passed": true
+    },
+    {
+      "name": "Décision conservée et intermission disponible · 1/3",
+      "passed": true
+    },
+    {
+      "name": "Décision conservée et intermission disponible · 1/6",
+      "passed": true
+    },
+    {
+      "name": "Transport réel via E et marche ralentie · unstable",
+      "passed": true
+    },
+    {
+      "name": "Histoire complète assistée, trois secteurs et fin witness · unstable",
+      "passed": true,
+      "details": [
+        {
+          "wave": 1,
+          "type": "purge",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "issues": false
+        },
+        {
+          "wave": 2,
+          "type": "hold",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "checkpoint": 2,
+          "issues": false
+        },
+        {
+          "wave": 3,
+          "type": "hunt",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "checkpoint": 3,
+          "issues": false
+        },
+        {
+          "wave": 4,
+          "type": "relay",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 4,
+          "issues": false
+        },
+        {
+          "wave": 5,
+          "type": "boss",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 5,
+          "issues": false
+        },
+        {
+          "wave": 6,
+          "type": "hunt",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 6,
+          "issues": false
+        },
+        {
+          "wave": 7,
+          "type": "transport",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 7,
+          "issues": false
+        },
+        {
+          "wave": 8,
+          "type": "hold",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 8,
+          "issues": false
+        },
+        {
+          "wave": 9,
+          "type": "purge",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 9,
+          "issues": false
+        },
+        {
+          "wave": 10,
+          "type": "boss",
+          "sector": "ossuary",
+          "state": "victory",
+          "issues": false
+        }
+      ]
+    },
+    {
+      "name": "Épilogue affiché et persisté · listen/preserve",
+      "passed": true
+    },
+    {
+      "name": "Décision conservée et intermission disponible · 2/3",
+      "passed": true
+    },
+    {
+      "name": "Décision conservée et intermission disponible · 2/6",
+      "passed": true
+    },
+    {
+      "name": "Transport réel via E et marche ralentie · red",
+      "passed": true
+    },
+    {
+      "name": "Histoire complète assistée, trois secteurs et fin scar · red",
+      "passed": true,
+      "details": [
+        {
+          "wave": 1,
+          "type": "purge",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "issues": false
+        },
+        {
+          "wave": 2,
+          "type": "hold",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "checkpoint": 2,
+          "issues": false
+        },
+        {
+          "wave": 3,
+          "type": "hunt",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "checkpoint": 3,
+          "issues": false
+        },
+        {
+          "wave": 4,
+          "type": "relay",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 4,
+          "issues": false
+        },
+        {
+          "wave": 5,
+          "type": "boss",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 5,
+          "issues": false
+        },
+        {
+          "wave": 6,
+          "type": "hunt",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 6,
+          "issues": false
+        },
+        {
+          "wave": 7,
+          "type": "transport",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 7,
+          "issues": false
+        },
+        {
+          "wave": 8,
+          "type": "hold",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 8,
+          "issues": false
+        },
+        {
+          "wave": 9,
+          "type": "purge",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 9,
+          "issues": false
+        },
+        {
+          "wave": 10,
+          "type": "boss",
+          "sector": "ossuary",
+          "state": "victory",
+          "issues": false
+        }
+      ]
+    },
+    {
+      "name": "Épilogue affiché et persisté · seal/preserve",
+      "passed": true
+    },
+    {
+      "name": "Décision conservée et intermission disponible · 3/3",
+      "passed": true
+    },
+    {
+      "name": "Décision conservée et intermission disponible · 3/6",
+      "passed": true
+    },
+    {
+      "name": "Transport réel via E et marche ralentie · nexus",
+      "passed": true
+    },
+    {
+      "name": "Histoire complète assistée, trois secteurs et fin scar · nexus",
+      "passed": true,
+      "details": [
+        {
+          "wave": 1,
+          "type": "purge",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "issues": false
+        },
+        {
+          "wave": 2,
+          "type": "hold",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "checkpoint": 2,
+          "issues": false
+        },
+        {
+          "wave": 3,
+          "type": "hunt",
+          "sector": "sanctum",
+          "state": "upgrade",
+          "checkpoint": 3,
+          "issues": false
+        },
+        {
+          "wave": 4,
+          "type": "relay",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 4,
+          "issues": false
+        },
+        {
+          "wave": 5,
+          "type": "boss",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 5,
+          "issues": false
+        },
+        {
+          "wave": 6,
+          "type": "hunt",
+          "sector": "nave",
+          "state": "upgrade",
+          "checkpoint": 6,
+          "issues": false
+        },
+        {
+          "wave": 7,
+          "type": "transport",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 7,
+          "issues": false
+        },
+        {
+          "wave": 8,
+          "type": "hold",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 8,
+          "issues": false
+        },
+        {
+          "wave": 9,
+          "type": "purge",
+          "sector": "ossuary",
+          "state": "upgrade",
+          "checkpoint": 9,
+          "issues": false
+        },
+        {
+          "wave": 10,
+          "type": "boss",
+          "sector": "ossuary",
+          "state": "victory",
+          "issues": false
+        }
+      ]
+    },
+    {
+      "name": "Épilogue affiché et persisté · listen/purge",
+      "passed": true
+    },
+    {
+      "name": "Trois fins et six archives visibles dans le dossier",
+      "passed": true
+    },
+    {
+      "name": "Dossier narratif persistant après rechargement sans réparation",
+      "passed": true
+    },
+    {
+      "name": "Archive tactile récupérée par le bouton Interagir",
+      "passed": true
+    },
+    {
+      "name": "Journal tactile consultable sans relancer le combat",
+      "passed": true
+    },
+    {
+      "name": "Décision mobile lisible, coûts présents et cibles tactiles dimensionnées",
+      "passed": true,
+      "details": {
+        "width": 390,
+        "viewport": 390,
+        "buttons": [
+          {
+            "width": 268,
+            "height": 260.734375,
+            "text": "Réarmer le confinementLe signal restera derrière le blindage. L’installation retrouve un opérateur plus protégé, au prix d’une greffe invasive.Bénéfice : +30 armure maximale et rend 30 armure.Coût : −15 santé maximale ; la santé actuelle est bornée au nouveau maximum."
+          },
+          {
+            "width": 268,
+            "height": 240.9375,
+            "text": "Ouvrir l’écouteVous entendez la commande avant le mouvement. Ce savoir entre avec une part du signal que les filtres étaient censés arrêter.Bénéfice : +10 % de dégâts avec toutes les armes.Coût : +15 points de Souillure, dans la limite de 100 %."
+          }
+        ]
+      }
+    },
+    {
+      "name": "Décision tactile : journal accessible après défilement sans effet",
+      "passed": true
+    },
+    {
+      "name": "Décision tactile : réglages accessibles sans débordement",
+      "passed": true
+    },
+    {
+      "name": "Décision tactile mène à la Nef avec choix sauvegardé",
+      "passed": true
+    },
+    {
+      "name": "Greffe / conflit : vraie sélection présentée après checkpoint de fixture valide",
+      "passed": true
+    },
+    {
+      "name": "Greffe / conflit : événement storage réel protège le dossier distant",
+      "passed": true
+    },
+    {
+      "name": "Greffe / conflit : clic et raccourci refusés sans mutation ni disparition du choix",
+      "passed": true,
+      "details": {
+        "state": "upgrade",
+        "blocked": true,
+        "callback": true,
+        "sameRuntime": true,
+        "sameMemory": true,
+        "sameDisk": true
+      }
+    },
+    {
+      "name": "Greffe / conflit : réglages de récupération accessibles et import interdit",
+      "passed": true
+    },
+    {
+      "name": "Greffe / conflit : export téléchargé exact du brouillon conservé",
+      "passed": true,
+      "details": {
+        "filename": "nexus-dossier-2026-08-31.json",
+        "bytes": 4612
+      }
+    },
+    {
+      "name": "Greffe / conflit : retour avec focus au choix bloqué et dossier inchangé",
+      "passed": true,
+      "details": {
+        "errors": []
       }
     },
     {
@@ -1537,12 +2114,21 @@
     "storage-conflict": "docs/screenshots/v1.2-storage-conflict.png",
     "future-save": "docs/screenshots/v1.2-future-save.png"
   },
-  "buildRevision": "nexus-of-torment-build-51127196b3d5da943696052baf8014fd24c554998e728ecb53ea3b982a3205a0",
+  "storyEvidence": {
+    "journal-new": "docs/screenshots/v1.3-journal-new.png",
+    "story-relays": "docs/screenshots/v1.3-story-relays.png",
+    "story-choice": "docs/screenshots/v1.3-story-choice.png",
+    "story-ending": "docs/screenshots/v1.3-story-ending.png",
+    "completion": "docs/screenshots/v1.3-completion.png",
+    "mobile-journal": "docs/screenshots/v1.3-mobile-journal.png",
+    "mobile-choice": "docs/screenshots/v1.3-mobile-choice.png"
+  },
+  "buildRevision": "nexus-of-torment-build-bac2e980672a3549bb70ae22b02fd3c2dd41d52a01031d779e3005bdb290adea",
   "performance": {
     "viewport": "1280x720",
     "averageFps": 60,
-    "drawCalls": 285,
-    "triangles": 8920,
+    "drawCalls": 284,
+    "triangles": 8800,
     "samples": [
       60,
       60,
@@ -1556,7 +2142,7 @@
   "expectedRecoverySignals": [
     {
       "type": "recovery-console",
-      "message": "Error: Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.\n    at HTMLCanvasElement.<anonymous> (http://127.0.0.1:52417/src/main.js:79:35)",
+      "message": "Error: Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.\n    at HTMLCanvasElement.<anonymous> (http://127.0.0.1:54858/src/main.js:79:35)",
       "expectedOffline": false,
       "expectedRecovery": true
     },
@@ -1576,7 +2162,7 @@
     }
   ],
   "summary": {
-    "passed": 97,
+    "passed": 150,
     "failed": 0
   }
 }

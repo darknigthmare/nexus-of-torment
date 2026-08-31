@@ -1,6 +1,6 @@
 {
   "name": "Nexus of Torment",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "buildDate": "2026-08-31",
   "runtime": "WebGL2 + Web Audio",
   "dependencies": 0,
@@ -14,7 +14,13 @@
     "difficultyLevels": 4,
     "stations": 7,
     "sectors": 3,
-    "waveObjectives": 3,
+    "waveObjectives": 5,
+    "storyChapters": 3,
+    "storyMissions": 10,
+    "storyChoices": 2,
+    "archives": 6,
+    "endings": 3,
+    "achievements": 20,
     "campaignWaves": 10,
     "pwa": true,
     "touchControls": true

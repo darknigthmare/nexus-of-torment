@@ -41,6 +41,16 @@
 - état d’installation/hors-ligne observable, réparation du cache protégée par SRI ;
 - charges respectant les couverts, slam proportionnel, stations sans achat inutile et orientation de reprise préservée.
 
+### 1.3.0 — Les voix du Nœud
+
+- histoire originale traversant les trois secteurs existants ;
+- deux décisions, trois épilogues et six archives physiques ;
+- relais séquentiels et transport avec contrepartie de mobilité ;
+- vingt accomplissements, journal en pause et reprise des décisions ;
+- migration v3, contrats narratifs/progression et parcours Chrome étendus.
+
+Les axes ci-dessous restent des extensions possibles, pas du contenu annoncé comme livré.
+
 ## Axe 1 — Secteurs supplémentaires
 
 - **Chapelle de Chair** : nef étroite, autels destructibles et voies latérales.
@@ -53,8 +63,7 @@ Chaque futur secteur devra conserver les contrats de stations, points d’appari
 ## Axe 2 — Variantes d’objectifs
 
 - protéger un générateur ;
-- interrompre plusieurs relais ;
-- transporter une cellule de confinement ;
+- autres variantes de relais et de transport (premières versions livrées en 1.3) ;
 - extraction après un temps limité ;
 - vagues sans boutique ou avec arsenal imposé.
 
@@ -95,7 +104,7 @@ Le réseau demanderait une refonte de la simulation et n’est pas inclus dans l
 - défis hors ligne déterministes ;
 - contrats de doctrine ;
 - mutations hebdomadaires générées par seed ;
-- pages de journal ;
+- archives et chapitres de journal supplémentaires ;
 - statistiques d’armes ;
 - cosmétiques procéduraux sans microtransaction.
 

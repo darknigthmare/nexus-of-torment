@@ -34,6 +34,10 @@ const requiredFiles = [
   'tools/input-contract-smoke.mjs', 'tools/storage-pwa-contract-smoke.mjs', 'tools/gameplay-polish-contract-smoke.mjs',
   'tools/browser-bindings-audit.mjs', 'tools/browser-storage-audit.mjs', 'tools/browser-shell-audit.mjs',
   'docs/GAMEPLAY_POLISH_1.2.1.md',
+  'src/game/story.js', 'src/game/progression.js',
+  'tools/story-data-smoke.mjs', 'tools/progression-contract-smoke.mjs', 'tools/story-gameplay-smoke.mjs', 'tools/browser-story-audit.mjs', 'docs/STORY_CANON.md',
+  'tools/browser-story-storage-audit.mjs',
+  'tools/browser-upgrade-storage-audit.mjs', 'docs/CONTENT_AUDIT_1.3.md',
   'tools/browser-product-audit.mjs', 'tools/build-smoke.mjs', 'tools/production-smoke.mjs',
   'docs/GDD.md', 'docs/TECHNICAL.md', 'docs/CODEX.md', 'docs/QA_REPORT.md', 'docs/ROADMAP.md'
 ];
@@ -85,7 +89,7 @@ if (releaseAudit) {
   if (validReport) {
     const browserChecks = Array.isArray(browserEvidence.checks) ? browserEvidence.checks : [];
     expect(
-      browserEvidence.target === 'local-build' && browserEvidence.version === versionJson.version &&
+      browserEvidence.target === 'local-build' && browserEvidence.scope === 'complete' && browserEvidence.version === versionJson.version &&
       browserChecks.length > 0 && browserChecks.every(check => check?.passed === true) &&
       browserEvidence.summary?.passed === browserChecks.length && browserEvidence.summary?.failed === 0 &&
       Array.isArray(browserEvidence.failures) && browserEvidence.failures.length === 0 && !browserEvidence.error,
@@ -141,6 +145,24 @@ if (releaseAudit) {
       'Cache incomplet réparé atomiquement en ligne dans Chrome',
       'SRI réel refuse un module distant altéré sans cache partiel',
       'Réparation récupérable après refus d’intégrité',
+      'Journal neuf sans révéler les missions et fins futures',
+      'Reprise au choix non résolu sans fausse réparation',
+      'Trois fins et six archives visibles dans le dossier',
+      'Dossier narratif persistant après rechargement sans réparation',
+      'Décision tactile mène à la Nef avec choix sauvegardé',
+      'Histoire et accomplissements chargés hors ligne',
+      'Histoire / conflit : clic réel sur le choix refusé sans coût, bonus ni faux combat figé',
+      'Histoire complète assistée, trois secteurs et fin sealed · containment',
+      'Histoire complète assistée, trois secteurs et fin witness · unstable',
+      'Histoire complète assistée, trois secteurs et fin scar · red',
+      'Histoire complète assistée, trois secteurs et fin scar · nexus',
+      'Transport réel via E et marche ralentie · nexus',
+      'Archive tactile récupérée par le bouton Interagir',
+      'Décision : journal consultable sans choisir ni reprendre',
+      'Décision tactile : réglages accessibles sans débordement',
+      'Greffe / conflit : clic et raccourci refusés sans mutation ni disparition du choix',
+      'Greffe / conflit : export téléchargé exact du brouillon conservé',
+      'Décision mobile lisible, coûts présents et cibles tactiles dimensionnées',
       'Console et runtime sans erreur'
     ];
     const missingBrowserChecks = requiredBrowserChecks.filter(name =>
@@ -167,6 +189,12 @@ if (releaseAudit) {
       const file = path.join(root, relative);
       return browserEvidence.auditEvidence?.[name] === relative && fs.existsSync(file) && fs.statSync(file).size > 0;
     }), 'Preuve locale : captures commandes et sauvegardes protégées présentes');
+    const storyCaptures = ['journal-new','story-relays','story-choice','story-ending','completion','mobile-journal','mobile-choice'];
+    expect(storyCaptures.every(name => {
+      const relative = 'docs/screenshots/v1.3-' + name + '.png';
+      const file = path.join(root, relative);
+      return browserEvidence.storyEvidence?.[name] === relative && fs.existsSync(file) && fs.statSync(file).size > 0;
+    }), 'Preuve locale : sept captures narratives présentes et référencées');
     const samples = Array.isArray(performance.samples) ? performance.samples : [];
     const median = samples.length === 3 && samples.every(Number.isFinite)
       ? [...samples].sort((a, b) => a - b)[1] : 0;
@@ -227,11 +255,18 @@ expect(
 const context = vm.createContext({ window: {} });
 const dataSource = fs.readFileSync(path.join(root, 'src/game/data.js'), 'utf8');
 vm.runInContext(dataSource, context, { filename: 'src/game/data.js' });
+for (const file of ['src/game/story.js','src/game/progression.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context,{filename:file});
 const data = context.window.NT?.Data;
 expect(Boolean(data), 'Données de jeu chargeables en isolation');
 
 if (data) {
   const actualCounts = {
+    storyChapters: context.window.NT.Story.CHAPTERS.length,
+    storyMissions: context.window.NT.Story.MISSIONS.length,
+    storyChoices: context.window.NT.Story.CHOICES.length,
+    archives: context.window.NT.Story.ARCHIVES.length,
+    endings: Object.keys(context.window.NT.Story.ENDINGS).length,
+    achievements: context.window.NT.Progression.ACHIEVEMENTS.length,
     classes: Object.keys(data.CLASSES).length,
     weapons: Object.keys(data.WEAPONS).length,
     enemyCastes: Object.keys(data.ENEMIES).length,
@@ -247,7 +282,7 @@ if (data) {
   }
   const stationCount = Object.values(data.STATIONS).reduce((sum, station) => sum + (station.instances || 1), 0);
   expect(stationCount === versionJson.content.stations, 'Inventaire stations', `${stationCount}/${versionJson.content.stations}`);
-  expect(versionJson.content.waveObjectives === 3 && versionJson.content.campaignWaves === 10, 'Contrat campagne 1.2');
+  expect(versionJson.content.waveObjectives === 5 && versionJson.content.campaignWaves === 10, 'Contrat cinq objectifs et campagne dix offices');
 
   const weaponSlots = Object.values(data.WEAPONS).map((weapon) => weapon.slot);
   expect(new Set(weaponSlots).size === weaponSlots.length, 'Emplacements d’armes uniques');

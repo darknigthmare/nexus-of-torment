@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -10,7 +11,7 @@ const json=process.argv.includes('--json');
 const noop=()=>{};
 let runtimeRandom=()=>.5;
 const context=vm.createContext({window:{},console,setTimeout,clearTimeout,performance:{now:()=>0},random:()=>runtimeRandom()});
-for(const file of ['src/core/math.js','src/core/engine.js','src/game/data.js','src/game/arena.js','src/game/entities.js','src/game/weapons.js','src/game/game.js']){
+for(const file of ['src/core/math.js','src/core/engine.js','src/game/data.js','src/game/story.js','src/game/arena.js','src/game/entities.js','src/game/weapons.js','src/game/game.js']){
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context,{filename:file});
 }
 vm.runInContext('Math.random = random',context);
@@ -29,17 +30,21 @@ function hostFor(difficultyId){
     stats:NT.NexusGame.prototype._newStats(),save:{data:{codex:{enemyKills:{}}}},
     spawnAbilityRing:noop,explode:noop
   });
+  // Le banc masque seulement l'espace pendant le modèle de tirs. Les contrats
+  // stationPrompt/_stationHasBenefit restent les méthodes réelles d'Arena.
   host.arena={
     game:host,setObjectiveZone:noop,triggerGatePulse:noop,addBloodDecal:noop,
+    _stationHasBenefit:NT.Arena.prototype._stationHasBenefit,stationPrompt:NT.Arena.prototype.stationPrompt,
     getSpawnPoint:()=>new Vec3(0,0,0),resolvePosition:noop,scheduleChainStrike:noop
   };
   host.player=new NT.Entities.Player(host);host.player.reset('bulwark',{});
   host.weapons=new NT.WeaponSystem(host);host.weapons.reset({});
   return host;
 }
-function campaignPlan(seed,difficultyId){
+function campaignPlan(seed,difficultyId,modeId='analysis'){
   runtimeRandom=rng(seed);
   const host=hostFor(difficultyId),waves=[];
+  host.modeId=modeId;
   for(let wave=1;wave<=10;wave++){
     host.wave=wave;host.currentModifier=host._pickModifier();host._configureWaveObjective();
     waves.push({wave,modifierId:host.currentModifier.id,objective:host.waveObjective.type,queue:host._buildWaveQueue()});
@@ -173,19 +178,78 @@ function reachableStations(){
       let found=false;
       for(let dx=-2;dx<=2&&!found;dx++)for(let dz=-2;dz<=2&&!found;dz++)if(clear(sx+dx,sz+dz)){sx+=dx;sz+=dz;found=true;}
     }
-    const queue=[[sx,sz]],seen=new Set([sx+','+sz]),found=new Set();
+    const storyTargets=NT.Story.ARCHIVES.filter(archive=>archive.sectorId===id).map(archive=>({
+      id:archive.id,position:arena.findSafePosition(archive.position,.65),radius:archive.radius
+    }));
+    for(const mission of NT.Story.MISSIONS.filter(mission=>mission.sectorId===id)){
+      if(!['relay','transport'].includes(mission.objective.type))continue;
+      host._configureStoryObjective(mission.objective);
+      const objective=host.waveObjective;
+      if(objective.type==='relay')objective.positions.forEach((position,index)=>storyTargets.push({id:'relay_'+(index+1),position,radius:objective.radius}));
+      else for(const kind of ['pickup','delivery'])storyTargets.push({id:'transport_'+kind,position:objective[kind+'Position'],radius:objective.radius});
+    }
+    const queue=[[sx,sz]],seen=new Set([sx+','+sz]),found=new Set(),storyFound=new Set();
     for(let index=0;index<queue.length;index++){
       const [x,z]=queue[index],position=point(x,z);
       for(const station of arena.stations)if(position.distanceToXZ(station.position)<=2.5)found.add(station.id);
+      for(const target of storyTargets)if(position.distanceToXZ(target.position)<=target.radius && !arena.lineBlocked(
+        new Vec3(position.x,1.05,position.z),new Vec3(target.position.x,1.05,target.position.z)
+      ))storyFound.add(target.id);
       for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
         const key=(x+dx)+','+(z+dz);if(seen.has(key)||!clear(x+dx,z+dz))continue;
         if([.25,.5,.75].some(t=>!arena._positionClear(point(x+dx*t,z+dz*t),.42)))continue;
         seen.add(key);queue.push([x+dx,z+dz]);
       }
     }
-    output.push({sector:id,reachable:[...found],total:arena.stations.length,visited:seen.size});
+    assert.equal(storyFound.size,storyTargets.length,'Ancrage histoire inaccessible sur la grille : '+id);
+    output.push({sector:id,reachable:[...found],total:arena.stations.length,visited:seen.size,
+      storyReachable:[...storyFound],storyTotal:storyTargets.length});
   }
   return output;
+}
+function storyContracts(plans){
+  let compositions=0;
+  const objectives=[];
+  for(const difficultyId of Object.keys(D.DIFFICULTIES))for(let seed=1;seed<=seedCount;seed++){
+    const legacy=plans.get(difficultyId+seed),story=campaignPlan(seed*7919,difficultyId,'story');
+    for(let index=0;index<10;index++){
+      const shape=wave=>JSON.stringify(wave.queue.map(({type,elite,boss})=>({type,elite,boss})));
+      assert.equal(shape(story[index]),shape(legacy[index]),'Budget initial différent en histoire : '+difficultyId+' vague '+(index+1));
+      assert.equal(story[index].modifierId,legacy[index].modifierId);
+      assert.equal(story[index].objective,NT.Story.getMission(index+1).objective.type);
+      compositions++;
+    }
+    if(!objectives.length)objectives.push(...story.map(wave=>wave.objective));
+  }
+  const choices=[];
+  for(const classId of Object.keys(D.CLASSES))for(const protocol of ['seal','listen'])for(const testimony of ['preserve','purge']){
+    const host=hostFor('unstable');host.player.reset(classId,{});host.weapons.reset({});
+    host.modeId='story';host.story=host._newStoryState();
+    host.input={requestLock:noop};host._beginIntermission=noop;
+    host.player.corruption=.95;
+    for(const state of Object.values(host.weapons.states))state.reserve=0;
+    const essence=host.player.essence,baseDamage=host.player.modifiers.damageMul;
+    for(const [id,optionId] of [['protocol',protocol],['testimony',testimony]]){
+      host.state='story-choice';host.pendingStoryChoice=NT.Story.getChoice(id);host.story.pendingChoiceId=id;
+      assert.equal(host.chooseStoryOption(optionId),true);
+      const after=JSON.stringify({story:host.story,health:host.player.maxHealth,armor:host.player.maxArmor,modifiers:host.player.modifiers});
+      assert.equal(host.chooseStoryOption(optionId),false);
+      assert.equal(JSON.stringify({story:host.story,health:host.player.maxHealth,armor:host.player.maxArmor,modifiers:host.player.modifiers}),after);
+    }
+    assert.equal(host.player.essence,essence,'Les choix ne créent pas d’Essence');
+    assert.equal(host.player.maxHealth,D.CLASSES[classId].health+(protocol==='seal'?-15:0));
+    assert.equal(host.player.maxArmor,D.CLASSES[classId].armor+(protocol==='seal'?30:0)+(testimony==='preserve'?-20:0));
+    assert.equal(host.player.maxGrenades,testimony==='purge'?1:2);
+    assert.equal(host.player.modifiers.damageMul,baseDamage*(protocol==='listen'?1.1:1));
+    assert.equal(host.player.modifiers.abilityRate,testimony==='preserve'?1.2:1);
+    assert.equal(host.player.corruption,protocol==='listen'?1:.95);
+    for(const state of Object.values(host.weapons.states))assert.equal(state.reserve,testimony==='purge'?state.maxReserve:0);
+    choices.push({classId,protocol,testimony,maxHealth:host.player.maxHealth,maxArmor:host.player.maxArmor,
+      maxGrenades:host.player.maxGrenades,damageMul:host.player.modifiers.damageMul,abilityRate:host.player.modifiers.abilityRate,
+      reserveRounds:Object.values(host.weapons.states).reduce((total,state)=>total+state.reserve,0)});
+  }
+  return {compositions,objectives,choices,
+    limitation:'Comparaison des files initiales et effets réels des choix uniquement. Pas de simulation du portage, des parcours sous attaque ou de leur nombre de renforts.'};
 }
 const plans=new Map(),groups=[];
 for(const difficultyId of Object.keys(D.DIFFICULTIES))for(let seed=1;seed<=seedCount;seed++)plans.set(difficultyId+seed,campaignPlan(seed*7919,difficultyId));
@@ -197,7 +261,7 @@ for(const difficultyId of Object.keys(D.DIFFICULTIES))for(const arsenal of ['dep
     shots:range('shots'),seconds:range('seconds'),ammoSpent:range('ammoSpent'),medicalSpent:range('medicalSpent'),weaponSpent:range('weaponSpent'),essence:range('essence'),bossAdds:range('bossAdds'),dropAmmo:range('dropAmmo'),failures:runs.filter(run=>!run.completed).map(run=>({wave:run.failedWave,enemy:run.blockedEnemy,deficit:run.ammoDeficit})),
     waves:Array.from({length:10},(_,index)=>{const samples=runs.map(run=>run.waves[index]).filter(Boolean);return {wave:index+1,samples:samples.length,shots:samples.length?Math.round(samples.reduce((sum,wave)=>sum+wave.shots,0)/samples.length):null,seconds:samples.length?Math.round(samples.reduce((sum,wave)=>sum+wave.seconds,0)/samples.length):null};})});
 }
-const report={seedCount,runs:groups.reduce((sum,group)=>sum+group.total,0),profiles,supplies,groups,stations:reachableStations()};
+const report={seedCount,runs:groups.reduce((sum,group)=>sum+group.total,0),profiles,supplies,groups,stations:reachableStations(),story:storyContracts(plans)};
 if(json)console.log(JSON.stringify(report,null,2));
 else{
   console.log('MODELE ANALYTIQUE — aucun playtest humain, aucune IA de combat / blessure simulée.');
@@ -207,5 +271,7 @@ else{
   console.log('|---|---|---|---|---:|---:|---:|---:|---:|');
   for(const group of groups)console.log('| '+[group.difficultyId,group.arsenal,group.profile,group.supply,group.completed+'/'+group.total,group.shots.join('–'),group.seconds.map(s=>(s/60).toFixed(1)).join('–'),group.ammoSpent.join('–'),group.essence.join('–')].join(' | ')+' |');
   console.log('Stations (grille de collision de 0,75 m, pas parcours navigateur) : '+JSON.stringify(report.stations));
+  console.log('Histoire : '+report.story.compositions+' compositions initiales identiques aux budgets historiques ; '+report.story.choices.length+' combinaisons doctrine/choix exécutées par chooseStoryOption.');
+  console.log(report.story.limitation);
   console.log('Diagnostics terminés : '+report.runs+' scénarios. --json donne les moyennes par vague, coûts et échecs.');
 }

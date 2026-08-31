@@ -1,4 +1,4 @@
-# Rapport QA — 1.2.1 « Liturgie nerveuse »
+# Rapport QA — 1.3.0 « Les voix du Nœud »
 
 Date : 31 août 2026. Périmètre : jeu solo WebGL 2, Chrome desktop et tactile émulé.
 
@@ -8,25 +8,44 @@ La commande de publication est `npm run qa:release`. Les preuves actives se trou
 
 | Suite | Résultat |
 |---|---:|
-| Scripts de jeu : syntaxe | 10/10 |
-| Audit statique | 95/95 |
+| Scripts de jeu : syntaxe | 12/12 |
+| Audit statique | 113/113 |
 | Gameplay historique, inchangé | 72/72 |
 | Combat, accessibilité ennemie et progression | 41/41 |
 | Animation sans dérive | 33/33 |
 | Lumières, télégraphes et flashes | 27/27 |
 | Sauvegarde, audio, cycle de vie et PWA | 73/73 |
-| Interface et transactions | 44/44 |
+| Interface et transactions | 58/58 |
 | Commandes et entrées physiques/tactiles | 87/87 |
 | Stockage concurrent, versions futures et intégrité PWA | 51/51 |
 | Charges, slam, stations et orientation de reprise | 33/33 |
+| Registre narratif et cohérence des données | 36/36 |
+| Progression, accomplissements et migration | 65/65 |
+| Histoire jouable, décisions et complétion intégrale | 31/31 |
 | Serveur HTTP local | 5/5 |
 | Build et intégrité de révision | 9/9 |
-| Chrome réel, parcours desktop/mobile/PWA | 97/97 |
-| Audit final de la preuve navigateur | 103/103 |
+| Chrome réel, parcours desktop/mobile/PWA/histoire | 150/150 |
+| Audit final de la preuve navigateur | 122/122 |
 
-Les neuf suites comportementales totalisent **461 contrôles**. Certains regroupent plusieurs variantes ; ils ne représentent pas 461 parties jouées. Les audits statiques et de release sont séparés : leurs assertions se recoupent.
+Les douze suites comportementales totalisent **607 contrôles**. Certains regroupent plusieurs variantes ; ils ne représentent pas 607 parties jouées. Les audits statiques et de release sont séparés : leurs assertions se recoupent.
 
 ## Ce qui est réellement testé
+
+### Histoire, variété et complétion 1.3
+
+Le registre est original : dix offices, trois chapitres, six archives et deux décisions donnant trois fins. Les tests de données vérifient immutabilité, liens, coûts, doctrine/choix et refus des identifiants inconnus. La progression possède vingt accomplissements et une récompense bornée à 41 fragments uniques ; aucune victoire historique absente n’est reconstruite artificiellement.
+
+Les trente et un contrats de gameplay Histoire comprennent seize campagnes assistées : quatre difficultés × quatre combinaisons de choix, avec changements de secteur, relais, prise/portage/livraison, boss, greffes, décision non résolue, checkpoint, extraction et épilogue. Les dégâts et déplacements sont injectés dans les vraies méthodes. La date de sauvegarde du banc est déterministe pour éviter une différence de milliseconde entre deux snapshots autrement identiques.
+
+Un scénario distinct part d’un dossier vierge et traverse 90 offices assistés : trois interventions sectorielles, trois histoires, vingt offices sans fin, puis une histoire rejouée. Il observe les vrais événements du runtime, atteint 20/20 accomplissements, vérifie chaque versement une seule fois et recharge le dossier à 100 %. Aucun flag d’accomplissement n’est coché directement dans ce scénario. Ce n’est pas un playtest humain.
+
+Dans Chrome, quatre histoires vont de leur lancement par les contrôles visibles à leur extraction : Confinement/Rempart, Instable/Exécuteur, Liturgie rouge/Occultiste et Nexus ouvert/Rempart. Les six archives sont prises avec E ; le portage s’active avec E et réduit bien le déplacement. Les combats et positions sont assistés. Les quatre choix combinés débloquent les trois fins ; le dossier demeure identique après rechargement. La capture de carrière montre honnêtement 17/20 : les extractions du Sanctuaire/de la Nef et le seuil sans fin ne sont pas attribués par ces histoires.
+
+Les décisions affichent bénéfice et coût, ne se valident ni au délai ni par Échap et restaurent le focus après lecture du journal. Journal, réglages et décision passent aussi par de vrais taps à 390 × 844. La reprise d’un choix non résolu ne verse pas ses effets deux fois. Deux onglets Chrome reproduisent le conflit pendant une décision, puis dans un contexte distinct pendant la greffe précédente : clic et raccourci refusés sans mutation, export téléchargé exact, retour au même choix. Le chrono optionnel d’une greffe est suspendu pendant les réglages, le conflit et la perte graphique.
+
+Le banc attend désormais la fin réelle du verrouillage du pointeur avant ses interactions clavier en mode tactile simulé. Sans cette synchronisation, sa sortie asynchrone pouvait effacer E via la protection normale anti-touches collées. Les protections du jeu sur perte de focus n’ont pas été affaiblies.
+
+La racine du dossier passe à v3, les checkpoints à v2. Les dossiers v1/v2 sont migrés ; les interventions et survies anciennes conservent leurs champs et prennent `story:null`. Un diagnostic indépendant a aussi chargé 24 checkpoints produits par le vrai code du commit `1783b5d` : trois doctrines × quatre difficultés × deux modes historiques. Migration et import restent exacts sans fausse réparation ; l’ancien moteur refuse à son tour le format v3 et conserve le brut.
 
 ### Gameplay et combat
 
@@ -54,7 +73,7 @@ Le tactile est exercé en Chrome à **390 × 844**, puis **844 × 390** : menus 
 
 ### PWA et réseau
 
-La build contient les SHA-256 SRI attendus pour chaque ressource précachée. Chrome retire deux fichiers de son cache QA, puis vérifie la réparation complète des 17 entrées. Une interception isolée altère ensuite réellement un module distant : Fetch refuse son intégrité, le lot reste incomplet sans écriture partielle et renvoie 503. Après retrait de l’interception et délai anti-boucle, le shell se répare. Ces opérations touchent seulement un profil de test temporaire.
+La build contient les SHA-256 SRI attendus pour chaque ressource précachée. Chrome retire deux fichiers de son cache QA, puis vérifie la réparation complète des 19 entrées, dont Histoire et Progression. Une interception isolée altère ensuite réellement un module distant : Fetch refuse son intégrité, le lot reste incomplet sans écriture partielle et renvoie 503. Après retrait de l’interception et délai anti-boucle, le shell se répare. Ces opérations touchent seulement un profil de test temporaire.
 
 Le statut hors ligne/installable/installé est distinct dans les réglages. Le dialogue natif d’installation n’a pas été validé par une installation humaine sur appareil ; ses événements sont couverts par des contrats. Une erreur technique reste dans les diagnostics, jamais dans le texte joueur.
 
@@ -66,7 +85,7 @@ Pour une URL de production, Playwright 1.55 nécessite l’activation de son ins
 
 ### Build
 
-Dix-huit fichiers statiques, dont l’illustration originale, sont publiés. Les textes sont normalisés en LF ; les binaires restent intacts. L’empreinte SHA-256 du shell inclut chemins, longueurs, contenu et SW source, puis est injectée dans le nom du cache de `dist/sw.js`. Le SW source n’est pas modifié. Deux builds identiques et l’invalidation de révision après changement sont vérifiés.
+Vingt fichiers statiques, dont l’illustration originale, composent le build de 2 263 418 octets. Sa révision est `bac2e980672a3549bb70ae22b02fd3c2dd41d52a01031d779e3005bdb290adea`. Les textes sont normalisés en LF ; les binaires restent intacts. L’empreinte SHA-256 du shell inclut chemins, longueurs, contenu et SW source, puis est injectée dans le nom du cache de `dist/sw.js`. Le SW source n’est pas modifié. Deux builds identiques et l’invalidation de révision après changement sont vérifiés.
 
 ## Console et performances
 
@@ -88,6 +107,8 @@ Autres captures : menu mobile, combat portrait, briefing, outils de sauvegarde e
 
 La passe 1.2.1 ajoute les commandes desktop/mobile et les dossiers protégés : `v1.2-bindings.png`, `v1.2-mobile-bindings.png`, `v1.2-storage-conflict.png`, `v1.2-future-save.png`. Les noms de preuves restent dans la famille 1.2 ; le JSON précise la version exacte et son empreinte de build.
 
+La passe 1.3 ajoute sept captures : journal neuf, relais, décision desktop, épilogue, accomplissements, journal mobile et décision mobile. Les boutons secondaires de la décision restent accessibles par défilement ; le parcours tactile les active réellement. La caméra de fixture du relais utilise un point libre et se synchronise avec le joueur avant la capture, sans retouche d’image. Les nouvelles captures sont préfixées `v1.3-`.
+
 L’inspection du paysage a révélé une fausse alerte « dossier réparé ». Le parcours Chrome complet a isolé un seul champ : un yaw de 0,00022822839394567797 devenait 0,00022822839394567794. La normalisation conserve désormais les angles canoniques exactement et intervient dès la création du snapshot. Le contrôle navigateur exige une sauvegarde valide sans réparation ; la capture finale confirme la disparition de l’alerte.
 
 Le navigateur intégré Codex était indisponible par restriction ACL. Les parcours ont été exécutés par le SDK de la suite du dépôt dans Google Chrome réel headless, puis les captures locales ont été inspectées. Aucun playtest humain n’est sous-entendu.
@@ -102,8 +123,8 @@ Ce modèle n’est pas un playtest : il exclut notamment les dégâts reçus en 
 
 ## Limites et publication
 
-Le périmètre livré est un jeu solo d’arènes : campagne à dix vagues et extraction, mode sans fin, trois secteurs sélectionnables, six armes, onze castes dont deux boss, progression persistante et sauvegarde locale. Il ne comprend pas réseau multijoueur, manette native, cloud save ni backend de boutique.
+Le périmètre livré est un jeu solo d’arènes : histoire traversante à dix offices, intervention sectorielle à dix vagues et extraction, mode sans fin, trois secteurs, six armes, onze castes dont deux boss, progression persistante, journal et sauvegarde locale. Il ne comprend pas réseau multijoueur, manette native, cloud save ni backend de boutique. [L’audit de contenu](CONTENT_AUDIT_1.3.md) distingue les nouveautés des systèmes préexistants.
 
 Pas de téléphone physique, Safari, test utilisateur externe, session humaine complète ni certification console/store/accessibilité/épilepsie effectués. La création OpenAI est une illustration du dossier, jamais une capture promotionnelle présentée comme gameplay. Ces limites ne doivent pas être masquées par le terme « commercial ».
 
-La production est vérifiée séparément après déploiement avec `npm run qa:production` : octets des 18 fichiers comparés à `dist`, MIME, sécurité HTTP, 404 et nouvelle passe Chrome. Les résultats sont écrits dans `.qa/production/` sans remplacer les preuves locales. Ce rapport local ne présume pas le succès d’un déploiement futur.
+La production est vérifiée séparément après déploiement avec `npm run qa:production` : octets des 20 fichiers comparés à `dist`, MIME, sécurité HTTP, 404 et nouvelle passe Chrome. Les résultats sont écrits dans `.qa/production/` sans remplacer les preuves locales. Ce rapport local ne présume pas le succès d’un déploiement futur.

@@ -9,6 +9,8 @@ const files = [
   'src/core/engine.js',
   'src/core/audio.js',
   'src/game/data.js',
+  'src/game/story.js',
+  'src/game/progression.js',
   'src/game/arena.js',
   'src/game/entities.js',
   'src/game/weapons.js',

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nexus-of-torment-v1.2.1-r1';
+const CACHE_VERSION = 'nexus-of-torment-v1.3.0-r1';
 const CACHE_PREFIX = 'nexus-of-torment-';
 // Le build remplace null par les SHA-256 des octets publiés (textes LF, binaires intacts).
 const SHELL_INTEGRITY = null;
@@ -14,6 +14,8 @@ const APP_SHELL = [
   './src/core/engine.js',
   './src/core/audio.js',
   './src/game/data.js',
+  './src/game/story.js',
+  './src/game/progression.js',
   './src/game/arena.js',
   './src/game/entities.js',
   './src/game/weapons.js',

@@ -1,10 +1,10 @@
 # NEXUS OF TORMENT
 
-**Survival-horror d’action 3D — édition autonome 1.2.1 « Liturgie nerveuse »**
+**Survival-horror d’action 3D — édition autonome 1.3.0 « Liturgie nerveuse »**
 
 *Nexus of Torment* est un survival-horror d’action original jouable en solo au clavier-souris ou avec ses commandes tactiles. Le projet embarque son moteur WebGL 2, ses modèles 3D procéduraux, ses shaders, son audio synthétisé, son interface, sa progression roguelite et sa sauvegarde locale. La PWA installable reste jouable hors ligne après sa première mise en cache ; aucune API ni ressource distante n’est nécessaire pendant la partie.
 
-![Menu principal desktop de la build 1.2](docs/screenshots/v1.2-desktop-menu.png)
+![Menu principal desktop](docs/screenshots/v1.2-desktop-menu.png)
 
 ## Lancer le jeu
 
@@ -38,7 +38,7 @@ npm run qa:release
 
 La QA utilise Chrome installé localement ; `NEXUS_CHROME_PATH` permet de choisir son binaire et `NEXUS_QA_HEADLESS=false` d’afficher la fenêtre. La release exige un rendu matériel à 1280 × 720 natif, une médiane d’au moins 30 FPS et aucun échantillon sous 24 FPS. Une URL passée à `npm run qa:browser -- <URL>` écrit ses preuves séparément dans `.qa/production/`.
 
-Les résultats et mesures courants figurent dans [la preuve navigateur](docs/QA_BROWSER_1.2.json), avec les limites des fixtures dans [le rapport QA](docs/QA_REPORT.md). Les parcours mobiles sont émulés dans Chrome ; ils ne certifient ni Safari, ni un téléphone physique, ni une campagne humaine gagnée sans assistance.
+Les résultats et mesures courants figurent dans [la preuve navigateur](docs/QA_BROWSER_1.2.json), avec les limites des fixtures dans [le rapport QA](docs/QA_REPORT.md). [L’audit de contenu 1.3](docs/CONTENT_AUDIT_1.3.md) distingue les ajouts réels et les limites commerciales. Les parcours mobiles sont émulés dans Chrome ; ils ne certifient ni Safari, ni un téléphone physique, ni une campagne humaine gagnée sans assistance.
 
 ## Commandes
 
@@ -64,12 +64,13 @@ Sur desktop, le jeu utilise le verrouillage du pointeur : cliquez dans la scène
 
 Le **Briefing** du menu, aussi accessible depuis la pause, explique objectifs, économie, sauvegarde et commandes. Le guidage de sceau/cible et l’aide initiale peuvent être désactivés dans les réglages. Pendant l’intermission, `Entrée` / `F` ou le bouton tactile « Lancer l’office » permettent d’avancer après le délai de sécurité.
 
-## Contenu de la build 1.2.1
+## Contenu de la build 1.3.0
 
 - **3 doctrines jouables** : Rempart, Exécuteur et Occultiste.
-- **2 modes** : campagne en 10 vagues avec extraction, et survie sans fin.
+- **3 modes** : Histoire — Les voix du Nœud ; intervention sectorielle en dix vagues ; survie sans fin.
+- **Une histoire originale traversante** : dix offices en trois chapitres, deux décisions chiffrées, trois épilogues (quatre combinaisons), six archives physiques et journal consultable en pause.
 - **3 secteurs distincts** : Sanctuaire de Fer, Nef des Sutures et Ossuaire des Crochets.
-- **3 objectifs de vague** : purge, maintien du sceau et chasse de signatures marquées, complétés par les offices de boss.
+- **5 objectifs de vague** : purge, maintien, chasse, relais séquentiels et transport d’un module qui ralentit les déplacements, complétés par les offices de boss.
 - **6 armes complètes** : WARD-9, Absolution, Spine Ripper, Cloueur Rituel, Vesper et Sanctificateur.
 - **Coup de crosse** avec portée, dégâts, recul, étourdissement et animation dédiée.
 - **11 castes au total** : 9 castes standards et 2 boss distincts.
@@ -78,6 +79,7 @@ Le **Briefing** du menu, aussi accessible depuis la pause, explique objectifs, �
 - **7 modificateurs de vagues** : Extinction, Frénésie, Hémorragie, Pluie de chaînes, Sacrement noir, Silence liturgique et Standard.
 - **20 greffes de run** cumulables avec rangs et synergies.
 - **6 améliorations persistantes** achetées avec les fragments gagnés.
+- **20 accomplissements** : objectifs, boss, extractions sectorielles, doctrines, difficultés, six archives, trois fins et vingtième office sans fin. Récompenses uniques totalisant 41 fragments, sans bonus de puissance cachés.
 - **7 stations diégétiques par secteur** : surcharge électrique, munitions, purification médicale et quatre armureries.
 - Dégâts localisés, tirs à la tête, pénétration, recul, dispersion, chute de dégâts, grenades et arcs électriques.
 - IA de meute, contrôle, vol, tir rituel, charge, blindage frontal, soutien, assassinat, corruption et boss multi-phase.
@@ -87,11 +89,21 @@ Le **Briefing** du menu, aussi accessible depuis la pause, explique objectifs, �
 - Codex, statistiques de carrière, réglages, pause, sauvegarde locale et options d’accessibilité : échelle du HUD, secousses, mouvement réduit, contrastes et sous-titres.
 - Interface responsive, commandes tactiles, manifeste installable, service worker et démarrage hors ligne.
 
-![Combat desktop dans la build 1.2](docs/screenshots/v1.2-desktop-gameplay.png)
+![Combat desktop](docs/screenshots/v1.2-desktop-gameplay.png)
 
-![Combat tactile dans la build 1.2](docs/screenshots/v1.2-mobile-gameplay.png)
+![Combat tactile](docs/screenshots/v1.2-mobile-gameplay.png)
 
-## Nouveautés principales de la 1.2
+## Les voix du Nœud — 1.3
+
+La Régie affirme qu’aucun salarié ne reste dans l’installation. Les transmissions de la maintenance et de la neurophysiologie racontent autre chose. Le parcours traverse le Sanctuaire (offices 1–3), la Nef (4–6) puis l’Ossuaire (7–10), en conservant vos armes, greffes et ressources.
+
+Après les offices 3 et 6, une décision suspend le combat : chaque option annonce son bénéfice et son coût, sans limite de lecture. Le checkpoint conserve aussi une décision encore non résolue. Six reliquaires facultatifs sont récupérables avec Interagir ; leurs indices de localisation figurent au Journal. Les transmissions et épilogues futurs ne sont pas dévoilés avant leur découverte.
+
+Le dossier v3 migre les anciennes sauvegardes et checkpoints sans supprimer les ressources ou réglages. Une ancienne PWA 1.2.1 refuse de réécrire ce nouveau format. Les compteurs de complétion ne prétendent pas reconstituer des victoires que les anciennes versions n’enregistraient pas.
+
+Le récit et ses limites sont détaillés dans [le complément de canon](docs/STORY_CANON.md). Les voix sont des **transmissions textuelles**, pas des dialogues doublés ; le combat conserve son audio procédural et ses créations visuelles originales.
+
+## Socle conservé de la 1.2
 
 ### Campagne et survie sans fin
 

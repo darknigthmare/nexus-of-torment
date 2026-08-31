@@ -22,6 +22,7 @@
       this.briefingScreen = this.$('briefing-screen');
       this.confirmScreen = this.$('confirm-screen');
       this.pointerLockScreen = this.$('pointer-lock-screen');
+      this.storyChoiceScreen = this.$('story-choice-screen');
       this.touchControls = this.$('touch-controls');
       this.damageFlashEl = this.$('damage-flash');
       this.corruptionOverlay = this.$('corruption-overlay');
@@ -33,7 +34,7 @@
       this.upgradeTimerEl = this.$('upgrade-timer');
       this.selectedClass = 'bulwark';
       this.selectedDifficulty = 'unstable';
-      this.selectedMode = 'campaign';
+      this.selectedMode = 'story';
       this.selectedSector = '';
       this.damageFlashValue = 0;
       this.hitmarkerValue = 0;
@@ -52,6 +53,15 @@
       this.bindingCapture = null;
       this.bindingReturn = null;
       this.bindingButtons = new Map();
+      this.epilogue = document.createElement('div');
+      this.epilogue.className = 'epilogue hidden';
+      this.victoryScreen.querySelector('.victory-shell').appendChild(this.epilogue);
+      const journalButton = document.createElement('button');
+      journalButton.className = 'secondary-button';
+      journalButton.setAttribute('id', 'victory-journal');
+      journalButton.textContent = 'JOURNAL & ACCOMPLISSEMENTS';
+      journalButton.addEventListener('click', () => this.openJournal());
+      this.victoryScreen.querySelector('.victory-actions').appendChild(journalButton);
       this._ensureSettingDefaults();
       this._populateSectors();
       this._bind();
@@ -145,6 +155,10 @@
       this.$('codex-button').addEventListener('click', () => this.openCodex());
       this.$('briefing-button').addEventListener('click', () => this.openBriefing());
       this.$('pause-briefing').addEventListener('click', () => this.openBriefing(true));
+      this.$('pause-journal').addEventListener('click', () => this.openJournal());
+      this.$('upgrade-settings').addEventListener('click', () => this.openSettings());
+      this.$('story-choice-settings').addEventListener('click', () => this.openSettings());
+      this.$('story-choice-journal').addEventListener('click', () => this.openJournal());
       this.$('settings-button').addEventListener('click', () => this.openSettings());
       this.$('credits-button').addEventListener('click', () => this.openModal(this.creditsScreen));
       document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => this.closeModal(this.$(button.dataset.close))));
@@ -188,7 +202,7 @@
           event.preventDefault();
           this.closeModal(this.activeModal);
         } else if (event.key === 'Tab') {
-          const modal = this.activeModal || [this.pauseScreen, this.upgradeScreen, this.victoryScreen, this.gameoverScreen, this.pointerLockScreen].find(screen => !screen.classList.contains('hidden'));
+          const modal = this.activeModal || [this.pauseScreen, this.upgradeScreen, this.storyChoiceScreen, this.victoryScreen, this.gameoverScreen, this.pointerLockScreen].find(screen => !screen.classList.contains('hidden'));
           if (modal) this._trapFocus(event, modal);
         }
       });
@@ -218,6 +232,11 @@
       const doctrine = D.CLASSES[this.selectedClass], difficulty = D.DIFFICULTIES[this.selectedDifficulty];
       const descriptions = { containment:'Pour découvrir les rites.', unstable:'Le défi de référence.', red:'Hordes renforcées, erreurs coûteuses.', nexus:'Épreuve extrême pour opérateurs aguerris.' };
       this.$('loadout-summary').textContent = doctrine.name + ' · ' + doctrine.health + ' santé / ' + doctrine.armor + ' armure. ' + doctrine.passive + ' ' + (descriptions[difficulty?.id] || '');
+      const story = this.selectedMode === 'story';
+      this.$('sector').disabled = story;
+      this.$('mission-summary').textContent = story
+        ? 'Retrouvez la voix humaine enfouie dans le Nœud 07. Sanctuaire → Nef → Ossuaire · 10 offices · décisions irréversibles pour cette tentative.'
+        : this.selectedMode === 'endless' ? 'Survivez aussi longtemps que possible dans le secteur choisi. Boss tous les cinq offices, sans extraction finale.' : 'Purgez dix offices dans le secteur choisi, abattez les deux boss puis rejoignez le sceau d’extraction.';
     }
 
     _confirmAction(title, detail, action) {
@@ -463,6 +482,14 @@
     }
 
     _bindTabs() {
+      const row = this.codexScreen.querySelector('.tab-row');
+      for (const [id, label] of [['journal','JOURNAL'],['completion','ACCOMPLISSEMENTS']]) {
+        const button = document.createElement('button');
+        button.className = 'tab'; button.setAttribute('data-tab', id);
+        button.setAttribute('role', 'tab'); button.setAttribute('aria-selected', 'false');
+        button.setAttribute('aria-controls', 'codex-content'); button.textContent = label;
+        row.appendChild(button);
+      }
       const tabs = [...document.querySelectorAll('.tab')];
       const select = button => {
         tabs.forEach(tab => {
@@ -569,7 +596,7 @@
     }
 
     _hideGameplayScreens() {
-      for (const screen of [this.pauseScreen, this.gameoverScreen, this.victoryScreen, this.upgradeScreen, this.pointerLockScreen]) screen?.classList.add('hidden');
+      for (const screen of [this.pauseScreen, this.gameoverScreen, this.victoryScreen, this.upgradeScreen, this.pointerLockScreen, this.storyChoiceScreen]) screen?.classList.add('hidden');
     }
 
     showMainMenu() {
@@ -598,6 +625,7 @@
       this.activeModal = null;
       this.mainMenu.removeAttribute('aria-hidden');
       this._setTouchControls(true);
+      this.storyChoiceScreen.classList.add('hidden');
     }
 
     _setTouchControls(active) {
@@ -631,6 +659,11 @@
       this.$('victory-kills').textContent = results.kills ?? 0;
       this.$('victory-score').textContent = Math.round(results.score || 0).toLocaleString('fr-FR');
       this.$('victory-shards').textContent = `◆ ${results.shards ?? 0}`;
+      this.epilogue.classList.toggle('hidden', !results.storyEnding);
+      this.epilogue.innerHTML = results.storyEnding ? '<h3>' + escapeHtml(results.storyEnding.title) + '</h3><p>' + escapeHtml(results.storyEnding.text) + '</p>' : '';
+      this.victoryScreen.querySelector('.victory-copy').textContent = results.storyEnding
+        ? 'Les trois secteurs sont scellés. La synthèse de votre issue et vos découvertes sont consignées dans le Journal.'
+        : 'La campagne est purgée. Le Nexus demeure pourtant assez vivant pour une survie sans fin.';
       this._focusFirst(this.victoryScreen);
     }
 
@@ -683,6 +716,39 @@
       this.openModal(this.settingsScreen);
     }
     openCodex() { this.renderCodex(this.currentCodexTab); this.openModal(this.codexScreen); }
+    openJournal() {
+      this.pauseScreen.classList.add('hidden');
+      this.openCodex();
+      this.codexScreen.querySelector('[data-tab="journal"]').click();
+    }
+
+    showStoryChoice(choice, callback) {
+      this._hideGameplayScreens();
+      this.hud.classList.add('hidden');
+      this._setTouchControls(false);
+      this.storyChoiceScreen.classList.remove('hidden');
+      this.$('story-choice-title').textContent = choice.title;
+      this.$('story-choice-description').textContent = choice.text;
+      this.$('story-choice-kicker').textContent = 'LES VOIX DU NŒUD · DÉCISION APRÈS L’OFFICE ' + choice.afterWave;
+      const root = this.$('story-choice-options');
+      root.innerHTML = '';
+      for (const option of choice.options) {
+        const button = document.createElement('button');
+        button.className = 'story-option secondary-button';
+        button.setAttribute('data-story-option', option.id);
+        button.innerHTML = '<strong>' + escapeHtml(option.title) + '</strong><span>' + escapeHtml(option.text) + '</span><small>Bénéfice : ' + escapeHtml(option.benefit) + '</small><small class="story-cost">Coût : ' + escapeHtml(option.cost) + '</small>';
+        button.addEventListener('click', () => callback(option.id));
+        root.appendChild(button);
+      }
+      this._focusFirst(this.storyChoiceScreen);
+    }
+
+    hideStoryChoice() {
+      this.storyChoiceScreen.classList.add('hidden');
+      this.activeModal = null;
+      this.hud.classList.remove('hidden');
+      this._setTouchControls(true);
+    }
     openBriefing(fromPause = false) {
       if (fromPause) this.pauseScreen.classList.add('hidden');
       this.openModal(this.briefingScreen);
@@ -693,7 +759,7 @@
     }
 
     _trapFocus(event, root) {
-      const focusables = [...root.querySelectorAll('button:not([disabled]), select:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')].filter(node => node.offsetParent !== null);
+      const focusables = [...root.querySelectorAll('button:not([disabled]), select:not([disabled]), input:not([disabled]), summary, [href], [tabindex]:not([tabindex="-1"])')].filter(node => node.offsetParent !== null);
       if (!focusables.length) return;
       const first = focusables[0], last = focusables[focusables.length - 1];
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
@@ -739,7 +805,8 @@
       if (this.announcementTimer <= 0) this.announcementEl.classList.add('hidden');
       this.subtitleTimer = Math.max(0, this.subtitleTimer - dt);
       if (this.subtitleTimer <= 0) this.$('subtitle').classList.add('hidden');
-      if (!this.upgradeScreen.classList.contains('hidden') && this.game.settings.timedUpgrades && !document.hidden) {
+      if (!this.upgradeScreen.classList.contains('hidden') && this.game.settings.timedUpgrades && !document.hidden &&
+          !this.activeModal && !this.game.persistenceBlocked && !this.game.graphicsUnavailable) {
         this.upgradeTimer = Math.max(0, this.upgradeTimer - dt);
         this.upgradeTimerEl.textContent = Math.ceil(this.upgradeTimer);
         if (this.upgradeTimer <= 0 && this.upgradeCallback) this.selectUpgrade(0);
@@ -789,8 +856,14 @@
       const streakEl = this.$('streak');
       streakEl.classList.toggle('hidden', streak <= 1);
       if (streak > 1) streakEl.querySelector('strong').textContent = streak;
-      this.setInteraction(game.arena.stationPrompt(game.arena.nearestStation(p.position)));
+      this.setInteraction(game.interactionPrompt ? game.interactionPrompt() : game.arena.stationPrompt(game.arena.nearestStation(p.position)));
       this._updateGuidance();
+      const story = this.$('story-hud');
+      story.classList.toggle('hidden', game.modeId !== 'story');
+      if (game.modeId === 'story') {
+        const mission = game.currentStoryMission;
+        story.textContent = mission ? 'LES VOIX DU NŒUD · ' + mission.title : 'LES VOIX DU NŒUD · JOURNAL EN PAUSE';
+      }
     }
 
     _updateGuidance() {
@@ -809,7 +882,8 @@
         const distance = Math.hypot(dx, dz), angle = Math.atan2(dx, -dz) - game.camera.yaw;
         const bearing = Math.atan2(Math.sin(angle), Math.cos(angle));
         const direction = distance <= (zone.radius || 0) ? 'DANS LE SCEAU' : Math.abs(bearing) < .35 ? 'EN FACE' : Math.abs(bearing) > 2.5 ? 'DERRIÈRE' : bearing > 0 ? 'À DROITE' : 'À GAUCHE';
-        navigation.textContent = (zone.type === 'hunt' ? 'CIBLE MARQUÉE' : 'SCEAU') + ' · ' + Math.ceil(distance) + ' M · ' + direction;
+        const label = zone.type === 'hunt' ? 'CIBLE MARQUÉE' : zone.type === 'transport' && !zone.carrying ? 'MODULE À PRENDRE' : zone.type === 'relay' ? 'RELAIS ' + (zone.index + 1) + '/' + zone.total : 'SCEAU';
+        navigation.textContent = label + ' · ' + Math.ceil(distance) + ' M · ' + direction;
       }
       const guide = this.$('field-guide');
       const initial = enabled && game.wave === 1 && game.runTime < 25 && !game.intermissionActive;
@@ -906,6 +980,9 @@
       this._focusFirst(this.upgradeScreen);
     }
     selectUpgrade(index) {
+      // Le refus précède la consommation du callback et la fermeture de l’écran.
+      // Les réglages/export restent accessibles, sans choisir derrière une modale.
+      if (this.activeModal || this.game.persistenceBlocked || this.game.graphicsUnavailable) return false;
       if (!this.upgradeCallback || !this.upgradeOptions[index]) return;
       const callback = this.upgradeCallback, upgrade = this.upgradeOptions[index];
       this.upgradeCallback = null;
@@ -920,7 +997,11 @@
 
     renderCodex(tab) {
       const root = this.$('codex-content'), save = this.game.save.data;
-      if (tab === 'bestiary') {
+      if (tab === 'completion') {
+        this._renderCompletion(root, save);
+      } else if (tab === 'journal') {
+        this._renderJournal(root, save);
+      } else if (tab === 'bestiary') {
         root.innerHTML = '<div class="codex-grid">' + Object.values(D.ENEMIES).map(enemy => {
           const kills = save.codex?.enemyKills?.[enemy.id] || 0, locked = kills === 0 && !enemy.boss;
           return `<article class="codex-card ${locked ? 'locked' : ''}"><div class="codex-icon">${locked ? '?' : escapeHtml(enemy.icon)}</div><h3>${locked ? 'SIGNATURE NON IDENTIFIÉE' : escapeHtml(enemy.name)}</h3><p>${locked ? 'Éliminez cette caste pour ouvrir son dossier.' : escapeHtml(enemy.description)}</p><footer>${locked ? 'DONNÉES VERROUILLÉES' : `${kills} élimination${kills > 1 ? 's' : ''} · ${escapeHtml(enemy.role)}`}</footer></article>`;
@@ -937,6 +1018,46 @@
         const r = save.records || {};
         root.innerHTML = `<div class="record-grid"><div class="record"><span>Meilleure vague</span><strong>${r.bestWave || 0}</strong></div><div class="record"><span>Score record</span><strong>${Math.round(r.bestScore || 0).toLocaleString('fr-FR')}</strong></div><div class="record"><span>Éliminations</span><strong>${r.lifetimeKills || 0}</strong></div><div class="record"><span>Boss abattus</span><strong>${r.bossKills || 0}</strong></div><div class="record"><span>Tirs à la tête</span><strong>${r.headshots || 0}</strong></div><div class="record"><span>Dégâts infligés</span><strong>${Math.round(r.damage || 0).toLocaleString('fr-FR')}</strong></div><div class="record"><span>Parties</span><strong>${r.runs || 0}</strong></div><div class="record"><span>Temps au Nexus</span><strong>${formatTime(r.playTime || 0)}</strong></div></div>`;
       }
+    }
+
+    _renderCompletion(root, save) {
+      const progress = NT.Progression?.summary(save.progression);
+      if (!progress) { root.textContent = 'Le dossier des accomplissements est indisponible.'; return; }
+      const next = progress.next;
+      root.innerHTML = '<div class="completion-summary"><strong>' + progress.completed + ' / ' + progress.total + ' accomplissements · ' + progress.percent + ' %</strong><p>' + progress.archives.completed + ' / ' + progress.archives.total + ' archives · ' + progress.endings.completed + ' / ' + progress.endings.total + ' épilogues</p>' + (next ? '<p>Prochain objectif : <b>' + escapeHtml(next.name) + '</b> · ' + escapeHtml(next.description) + ' (' + next.progress + ' / ' + next.target + ')</p>' : '<p>Tous les accomplissements sont consignés. La survie sans fin reste ouverte.</p>') + '<small>Les fragments sont attribués une seule fois par accomplissement. Les anciennes sauvegardes conservent leurs statistiques ; aucune victoire non enregistrée n’est inventée.</small></div><div class="codex-grid">' + NT.Progression.ACHIEVEMENTS.map(item => {
+        const achieved = Boolean(save.progression?.achievements?.[item.id]);
+        return '<article class="completion-card ' + (achieved ? 'achieved' : '') + '"><div class="eyebrow">' + (achieved ? 'ACCOMPLI' : 'À ACCOMPLIR') + '</div><h3>' + escapeHtml(item.name) + '</h3><p>' + escapeHtml(item.description) + '</p><footer>' + (achieved ? 'Récompense déjà attribuée' : 'Récompense unique') + ' · ◆ ' + item.reward + '</footer></article>';
+      }).join('') + '</div>';
+    }
+
+    _renderJournal(root, save) {
+      const story = NT.Story;
+      if (!story) { root.textContent = 'Les archives du Nœud sont indisponibles.'; return; }
+      const reached = Math.max(1, save.progression?.storyWave || 0);
+      root.innerHTML = '<div class="journal-intro"><strong>Les voix du Nœud</strong><p>La mission officielle : refermer la porte. Ce que vous rapporterez de l’autre côté dépend de ce que vous acceptez d’entendre.</p><p>Les transmissions se révèlent au fil des offices. Les archives sont facultatives : approchez leur reliquaire et utilisez Interagir. Les découvertes restent dans votre dossier après une mort.</p></div>';
+      for (const chapter of story.CHAPTERS) {
+        const section = document.createElement('section');
+        section.className = 'journal-chapter';
+        section.innerHTML = '<h3>' + escapeHtml(chapter.title || chapter.name) + '</h3>';
+        for (const mission of story.MISSIONS.filter(item => item.chapterId === chapter.id)) {
+          const known = mission.wave <= reached;
+          section.innerHTML += known
+            ? '<details class="journal-entry"><summary>Office ' + mission.wave + ' · ' + escapeHtml(mission.title) + '</summary><p><b>' + escapeHtml(mission.speaker) + '</b> — ' + escapeHtml(mission.text) + '</p>' + (reached > mission.wave || Object.values(save.progression?.endings || {}).some(Boolean) ? '<p>' + escapeHtml(mission.journal.text) + '</p>' : '') + '</details>'
+            : '<p class="journal-locked">Office ' + mission.wave + ' · Transmission non reçue</p>';
+        }
+        for (const archive of story.ARCHIVES.filter(item => item.sectorId === chapter.sectorId)) {
+          const known = Boolean(save.progression?.archives?.[archive.id]);
+          section.innerHTML += known
+            ? '<details class="journal-entry" data-archive="' + archive.id + '"><summary>Archive retrouvée · ' + escapeHtml(archive.title) + '</summary><p><b>' + escapeHtml(archive.speaker) + '</b> — ' + escapeHtml(archive.text) + '</p></details>'
+            : '<p class="journal-locked">Archive non retrouvée · ' + escapeHtml(archive.hint || archive.locationHint || '') + '</p>';
+        }
+        root.appendChild(section);
+      }
+      const endings = document.createElement('section'); endings.className = 'journal-chapter';
+      endings.innerHTML = '<h3>Épilogues</h3>' + Object.values(story.ENDINGS).map(ending => save.progression?.endings?.[ending.id]
+        ? '<details class="journal-entry"><summary>' + escapeHtml(ending.title) + '</summary><p><b>' + escapeHtml(ending.speaker) + '</b> — ' + escapeHtml(ending.text) + '</p><p>' + escapeHtml(ending.journal) + '</p></details>'
+        : '<p class="journal-locked">Épilogue non découvert · Terminez l’histoire avec d’autres décisions.</p>').join('');
+      root.appendChild(endings);
     }
 
     buyMeta(id) {

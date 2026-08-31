@@ -8,6 +8,8 @@ import { auditMenu, auditPause, auditMobileMenu, auditMobileCombat, auditRecover
 import { auditBindingsMenu, auditBindingsGameplay, auditBindingsMobile } from './browser-bindings-audit.mjs';
 import { auditStorageTabs, auditFutureSave } from './browser-storage-audit.mjs';
 import { auditShellRepair } from './browser-shell-audit.mjs';
+import { auditStory } from './browser-story-audit.mjs';
+import { auditUpgradeConflict } from './browser-upgrade-storage-audit.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let url = process.argv[2] || process.env.NEXUS_QA_URL || null;
@@ -39,6 +41,7 @@ fs.mkdirSync(shots, { recursive:true });
 const report = {
   schemaVersion:1, product:'NEXUS OF TORMENT — Liturgie nerveuse', version:JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf8')).version,
   target:explicitUrl ? 'production-url' : 'local-build',
+  scope:process.env.NEXUS_QA_ONLY === 'story' ? 'story-only' : 'complete',
   executedAt:new Date().toISOString(), url,
   browser:{ engine:'Chromium', executable:chrome, headless, softwareRenderer, launchArgs, serviceWorkerNetworkEvents:true },
   checks:[], failures:[], evidence:{
@@ -48,6 +51,7 @@ const report = {
   }
 };
 report.auditEvidence = Object.fromEntries(['briefing','save-tools','mobile-menu','mobile-grafts','mobile-landscape','bindings','mobile-bindings','storage-conflict','future-save'].map(name => [name, evidencePath('v1.2-' + name + '.png')]));
+report.storyEvidence = Object.fromEntries(['journal-new','story-relays','story-choice','story-ending','completion','mobile-journal','mobile-choice'].map(name => [name, evidencePath('v1.3-' + name + '.png')]));
 function verify(name, value, details) {
   report.checks.push({ name, passed:Boolean(value), ...(details === undefined ? {} : { details }) });
   if (!value) { report.failures.push(name); throw new Error(name); }
@@ -213,6 +217,7 @@ try {
     executablePath:chrome, headless,
     args:launchArgs
   });
+  if (process.env.NEXUS_QA_ONLY !== 'story') {
   const desktop = await browser.newContext({
     viewport:{ width:1280, height:720 }, colorScheme:'dark',
     reducedMotion:'no-preference', serviceWorkers:'allow'
@@ -231,8 +236,8 @@ try {
     sectors:document.querySelectorAll('#sector option:not([disabled])').length,
     lang:document.documentElement.lang, title:document.title
   }));
-  verify('Menu complet: 3 classes, 4 difficultés, 2 modes, 3 secteurs',
-    menu.classes === 3 && menu.difficulties === 4 && menu.modes === 2 && menu.sectors === 3, menu);
+  verify('Menu complet: 3 classes, 4 difficultés, 3 modes, 3 secteurs',
+    menu.classes === 3 && menu.difficulties === 4 && menu.modes === 3 && menu.sectors === 3, menu);
   verify('Document français titré', menu.lang === 'fr' && /NEXUS OF TORMENT/i.test(menu.title), menu);
   await page.screenshot({ path:path.join(shots, 'v1.2-desktop-menu.png') });
   await auditMenu(page, verify, shots);
@@ -453,6 +458,7 @@ try {
   const offlineBoot = await snapshot(page);
   verify('PWA redémarre hors-ligne',
     offlineBoot.state === 'menu' && offlineBoot.webgl2 && offlineBoot.fallbackHidden, offlineBoot);
+  verify('Histoire et accomplissements chargés hors ligne',await page.evaluate(()=>window.NT.Story.MISSIONS.length===10&&window.NT.Progression.ACHIEVEMENTS.length===20));
   const offlineMiss = await page.evaluate(async () => {
     const response = await fetch('./qa-cache-miss.txt');
     return { status:response.status, text:await response.text() };
@@ -533,6 +539,9 @@ try {
   await auditStorageTabs(browser, verify, url, shots, observePage);
   await auditFutureSave(browser, verify, url, shots, observePage);
   await auditShellRepair(browser, verify, url, observePage);
+  }
+  await auditStory(browser, verify, url, shots, observePage);
+  await auditUpgradeConflict(browser, verify, url, observePage);
 
   const realErrors = unexpectedErrors();
   verify('Console et runtime sans erreur', realErrors.length === 0, realErrors);

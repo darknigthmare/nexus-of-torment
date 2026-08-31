@@ -1,6 +1,6 @@
 {
   "name": "nexus-of-torment",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "private": true,
   "description": "Survival-horror d'action 3D autonome en WebGL2.",
   "scripts": {
@@ -16,7 +16,7 @@
     "manifest": "node tools/manifest.mjs",
     "manifest:check": "node tools/manifest.mjs --check",
     "test": "npm run check && npm run audit && npm run runtime-smoke && npm run contracts && npm run http-smoke",
-    "contracts": "node tools/combat-contract-smoke.mjs && node tools/render-contract-smoke.mjs && node tools/presentation-contract-smoke.mjs && node tools/resilience-contract-smoke.mjs && node tools/ui-contract-smoke.mjs && node tools/input-contract-smoke.mjs && node tools/storage-pwa-contract-smoke.mjs && node tools/gameplay-polish-contract-smoke.mjs",
+    "contracts": "node tools/combat-contract-smoke.mjs && node tools/render-contract-smoke.mjs && node tools/presentation-contract-smoke.mjs && node tools/resilience-contract-smoke.mjs && node tools/ui-contract-smoke.mjs && node tools/input-contract-smoke.mjs && node tools/storage-pwa-contract-smoke.mjs && node tools/gameplay-polish-contract-smoke.mjs && node tools/story-data-smoke.mjs && node tools/progression-contract-smoke.mjs && node tools/story-gameplay-smoke.mjs",
     "runtime-smoke": "node tools/runtime-smoke.mjs",
     "http-smoke": "node tools/http-smoke.mjs"
   },

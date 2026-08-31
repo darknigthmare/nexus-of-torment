@@ -9,7 +9,7 @@
   const { Camera, Renderer, ParticleSystem, Input, SaveStore, Transform, Material, modelMatrixBetween } = E;
   const { Player, Enemy, Projectile, Pickup } = NT.Entities;
   const prefersReducedMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-  const RUN_MODES = Object.freeze({ campaign:true, endless:true });
+  const RUN_MODES = Object.freeze({ campaign:true, endless:true, story:true });
   const ownedId = (map, id) => typeof id === 'string' && Boolean(map) && Object.hasOwn(map, id);
   const ownValue = (map, id, fallback = 0) => map && Object.hasOwn(map, id) ? map[id] : fallback;
   function normalizedYaw(value) {
@@ -49,7 +49,7 @@
   });
 
   const DEFAULT_SAVE = {
-    version: 2,
+    version: 3,
     settings: { ...DEFAULT_SETTINGS },
     shards: 0,
     meta: {
@@ -71,7 +71,8 @@
       runs: 0,
       playTime: 0
     },
-    activeRun: null
+    activeRun: null,
+    progression: NT.Progression?.create?.() || { version:1 }
   };
 
   class NexusGame {
@@ -116,6 +117,11 @@
       this.extractionZone = null;
       this.modeId = 'campaign';
       this.sectorId = 'sanctum';
+      this.story = null;
+      this.pendingStoryChoice = null;
+      this.currentStoryMission = null;
+      this.currentStoryChapter = null;
+      this.storyArchives = [];
       this.deathTimer = 0;
       this.lastClassId = 'bulwark';
       this.lastDifficultyId = 'unstable';
@@ -216,6 +222,214 @@
       this.saveSettings();
     }
 
+    _newStoryState() {
+      return { version:1, choices:{ protocol:'', testimony:'' }, pendingChoiceId:'' };
+    }
+
+    _validateStoryState(raw, nextWave, sectorId) {
+      if (!NT.Story || !raw || typeof raw !== 'object' || Array.isArray(raw) || raw.version !== 1 || !raw.choices || typeof raw.choices !== 'object' || Array.isArray(raw.choices)) return null;
+      const result = this._newStoryState();
+      for (const id of ['protocol','testimony']) {
+        const value = ownValue(raw.choices, id, null);
+        if (typeof value !== 'string' || (value && !NT.Story.getOption(id,value))) return null;
+        result.choices[id] = value;
+      }
+      if (!['','protocol','testimony'].includes(raw.pendingChoiceId)) return null;
+      result.pendingChoiceId = raw.pendingChoiceId;
+      if (nextWave < 4 && (result.choices.protocol || result.pendingChoiceId)) return null;
+      if (nextWave > 4 && !result.choices.protocol) return null;
+      if (nextWave < 7 && result.choices.testimony) return null;
+      if (nextWave > 7 && !result.choices.testimony) return null;
+      if (result.pendingChoiceId) {
+        const boundary = result.pendingChoiceId === 'protocol' ? 4 : 7;
+        if (nextWave !== boundary || result.choices[result.pendingChoiceId]) return null;
+      } else if ((nextWave === 4 && !result.choices.protocol) || (nextWave === 7 && !result.choices.testimony)) return null;
+      const expected = NT.Story.getChapter(result.pendingChoiceId ? nextWave - 1 : nextWave)?.sectorId;
+      return expected === sectorId ? result : null;
+    }
+
+    _progressEvent(event, persist = false) {
+      if (!NT.Progression?.apply || !this.save?.data) return null;
+      const result = NT.Progression.apply(this.save.data.progression || NT.Progression.create(), event);
+      if (!result.changed) return result;
+      this.save.data.progression = result.data;
+      this.save.data.shards = (this.save.data.shards || 0) + (result.reward || 0);
+      for (const id of result.unlocked || []) {
+        const achievement = NT.Progression.ACHIEVEMENTS.find(item => item.id === id);
+        this.ui.toast?.('JALON ACCOMPLI', (achievement?.name || 'Dossier complété') + ' · +' + (achievement?.reward || 0) + ' fragments');
+      }
+      if (persist) this.save.save();
+      return result;
+    }
+
+    _prepareStoryWave(wave) {
+      if (this.modeId !== 'story') return false;
+      const mission = NT.Story?.getMission(wave), chapter = NT.Story?.getChapter(wave);
+      if (!mission || !chapter) return false;
+      const changed = this.sectorId !== chapter.sectorId;
+      if (changed) {
+        // Une transition change le lieu et ses menaces, jamais la construction
+        // du survivant, son arsenal, ses ressources ou ses délais de capacité.
+        for (const key of ['enemies','projectiles','pickups','tracers','arcs','rings','hallucinations','spawnQueue']) if (this[key]) this[key].length = 0;
+        this.spawnsRemaining = 0; this.spawnTimer = 0; this.chainStormTimer = 0;
+        this.particles.clear(); this.arena.reset();
+        this.sectorId = chapter.sectorId; this.arena.setSector(this.sectorId);
+        const start = this.arena.getStartPosition();
+        this.arena.repositionSafely?.(this.player,start,this.player.radius);
+        if (!this.arena.repositionSafely) this.player.position.copy(start);
+        this.player.velocity.set(0,0,0); this.player.hitVelocity.set(0,0,0);
+        this.player.hookTimer = 0; this.player.slowTimer = 0; this.player.slowAmount = 0;
+        this.camera.position.set(this.player.position.x,this.player.position.y+this.player.eyeHeight,this.player.position.z);
+        const facing = D.SECTORS[this.sectorId].startFacing || [0,0,0];
+        this.camera.yaw = Math.atan2((Number(facing[0])||0)-this.player.position.x,-((Number(facing[2])||0)-this.player.position.z));
+        this.camera.pitch = 0;
+        this.input.clearPhysicalInputs?.(); this.input.clearVirtualInputs?.();
+      }
+      if (this.currentStoryChapter?.id !== chapter.id || !this.storyArchives?.length) {
+        this.storyArchives = NT.Story.getArchives(chapter.id).map(archive => ({
+          ...archive,
+          position:this.arena.findSafePosition?.(archive.position,.65) || new Vec3(...archive.position),
+          collected:Boolean(this.save.data.progression?.archives?.[archive.id])
+        }));
+      }
+      this.currentStoryChapter = chapter;
+      this.currentStoryMission = mission;
+      return changed;
+    }
+
+    _openStoryChoice() {
+      const choice = NT.Story?.getChoice(this.wave);
+      if (this.modeId !== 'story' || !choice || this.story?.choices?.[choice.id]) return false;
+      this._prepareStoryWave(this.wave);
+      this.story.pendingChoiceId = choice.id;
+      this.pendingStoryChoice = choice;
+      this.waveActive = false; this.pendingUpgrade = false; this.intermissionActive = false;
+      this.state = 'story-choice';
+      this.input.exitLock(); this.input.clearPhysicalInputs?.(); this.input.clearVirtualInputs?.();
+      this._checkpointActiveRun(this.wave + 1);
+      this.ui.showStoryChoice?.(choice, optionId => this.chooseStoryOption(optionId));
+      return true;
+    }
+
+    chooseStoryOption(optionId) {
+      if (this.persistenceBlocked || this.graphicsUnavailable) return false;
+      const choice = this.pendingStoryChoice;
+      if (this.modeId !== 'story' || this.state !== 'story-choice' || !choice || this.story?.pendingChoiceId !== choice.id || this.story.choices[choice.id]) return false;
+      const option = NT.Story?.getOption(choice.id,optionId);
+      if (!option) return false;
+      // L’identifiant est consommé avant ses effets : un double clic ne peut
+      // accorder deux fois le bénéfice, ni payer deux fois sa contrepartie.
+      this.story.choices[choice.id] = option.id;
+      this.story.pendingChoiceId = '';
+      this.pendingStoryChoice = null;
+      const effects = option.effects || {}, player = this.player;
+      if (effects.maxHealth) { player.maxHealth = Math.max(1,player.maxHealth+effects.maxHealth); player.health = Math.min(player.health,player.maxHealth); }
+      if (effects.maxArmor) { player.maxArmor = Math.max(0,player.maxArmor+effects.maxArmor); player.armor = Math.min(player.armor,player.maxArmor); }
+      if (effects.armor) player.addArmor(effects.armor);
+      if (effects.damageMul) player.modifiers.damageMul *= 1+effects.damageMul;
+      if (effects.abilityRate) player.modifiers.abilityRate *= 1+effects.abilityRate;
+      if (effects.corruptionDelta) player.corruption = clamp(player.corruption+effects.corruptionDelta,0,1);
+      if (effects.maxGrenades) { player.maxGrenades = Math.max(0,player.maxGrenades+effects.maxGrenades); player.grenades = Math.min(player.grenades,player.maxGrenades); }
+      if (effects.reserveFraction) this.weapons.refillReserves(effects.reserveFraction);
+      this.ui.hideStoryChoice?.();
+      this.state = 'playing';
+      this._beginIntermission();
+      this.input.requestLock();
+      return true;
+    }
+
+    _configureStoryObjective(definition) {
+      const position = source => this.arena.findSafePosition?.(source,definition.radius || 2.6) || new Vec3(...source);
+      const common = {type:definition.type,phase:'active',radius:definition.radius,duration:definition.duration,progress:0,reinforcementTimer:4};
+      if (definition.type === 'relay') {
+        const positions = definition.positions.map(position);
+        this.waveObjective = {...common,positions,index:0,total:positions.length,remaining:positions.length,position:positions[0]};
+      } else {
+        const pickupPosition = position(definition.pickup), deliveryPosition = position(definition.delivery);
+        this.waveObjective = {...common,pickupPosition,deliveryPosition,position:pickupPosition,carrying:false,speedMultiplier:definition.speedMultiplier};
+      }
+      this.arena.setObjectiveZone?.(this.waveObjective);
+    }
+
+    _updateStoryObjective(dt) {
+      const objective = this.waveObjective;
+      if (!objective || objective.phase !== 'active') return;
+      const canProgress = objective.type === 'relay' || objective.carrying;
+      const inside = this.player.position.distanceToXZ(objective.position) <= objective.radius;
+      if (canProgress) objective.progress = inside ? Math.min(objective.duration,objective.progress+dt) : Math.max(0,objective.progress-dt*.45);
+      objective.reinforcementTimer -= dt;
+      if (objective.reinforcementTimer <= 0 && this.enemies.filter(enemy => enemy.alive).length < Math.min(9,4+Math.floor(this.wave/2))) {
+        objective.reinforcementTimer = 4.5;
+        this._spawnObjectiveReinforcement(false);
+      }
+      if (!canProgress || objective.progress < objective.duration) return;
+      if (objective.type === 'relay') {
+        objective.index++; objective.remaining = objective.total-objective.index;
+        if (objective.index < objective.total) {
+          objective.position = objective.positions[objective.index]; objective.progress = 0;
+          this.arena.setObjectiveZone?.(objective);
+          this.ui.announce('RELAIS COUPÉ', objective.index + ' / ' + objective.total, 'Rejoignez le sceau suivant.',2);
+          return;
+        }
+      }
+      objective.phase = 'cleanup'; objective.carrying = false;
+      this.spawnQueue.length = 0; this.spawnsRemaining = 0;
+      this.arena.setObjectiveZone?.(null);
+      this.ui.announce(objective.type === 'relay' ? 'LIAISON ROMPUE' : 'MODULE À L’ABRI', 'OBJECTIF STABILISÉ', 'Purgez les survivants.',2.5);
+    }
+
+    storyMoveSpeedMultiplier() {
+      return this.modeId === 'story' && this.waveObjective?.type === 'transport' && this.waveObjective.phase === 'active' && this.waveObjective.carrying
+        ? clamp(Number(this.waveObjective.speedMultiplier)||.78,.5,1) : 1;
+    }
+
+    nearestStoryInteraction() {
+      if (this.modeId !== 'story' || this.state !== 'playing') return null;
+      const candidates = (this.storyArchives || []).filter(archive => !archive.collected).map(archive => ({type:'archive',id:archive.id,position:archive.position,radius:archive.radius,title:'RECUEILLIR · '+archive.title,description:'Archive originale · lecture disponible dans le dossier',archive}));
+      const objective = this.waveObjective;
+      if (objective?.type === 'transport' && objective.phase === 'active' && !objective.carrying) candidates.push({type:'transport',position:objective.pickupPosition,radius:objective.radius,title:'PRENDRE LE MODULE',description:'Transport ralenti · livrez-le au sceau indiqué'});
+      let nearest = null, distance = Infinity;
+      for (const target of candidates) {
+        const next = this.player.position.distanceToXZ(target.position);
+        if (next > target.radius || next >= distance) continue;
+        if (this.arena.lineBlocked(new Vec3(this.player.position.x,this.player.position.y+1.05,this.player.position.z),new Vec3(target.position.x,target.position.y+1.05,target.position.z))) continue;
+        nearest = target; distance = next;
+      }
+      return nearest;
+    }
+
+    _interactionTarget() {
+      const story = this.nearestStoryInteraction(), station = this.arena.nearestStation(this.player.position);
+      if (!station || (story && story.position.distanceToXZ(this.player.position) <= station.position.distanceToXZ(this.player.position))) return story;
+      return {type:'station',station};
+    }
+
+    interactionPrompt() {
+      if (this.modeId !== 'story') return this.arena.stationPrompt(this.arena.nearestStation(this.player.position));
+      const target = this._interactionTarget();
+      return !target ? null : target.type === 'station' ? this.arena.stationPrompt(target.station) : {title:target.title,cost:target.description};
+    }
+
+    _activateStoryInteraction(target) {
+      if (this.modeId !== 'story' || this.state !== 'playing' || !target) return false;
+      if (target.type === 'archive') {
+        const archive = (this.storyArchives || []).find(entry => entry.id === target.id);
+        if (!archive || archive.collected) return false;
+        archive.collected = true;
+        this._progressEvent({type:'archive',id:archive.id},true);
+        this.ui.toast?.('ARCHIVE RECUEILLIE', archive.title);
+        this.ui.subtitle?.(archive.speaker+' — '+archive.text,7);
+        return true;
+      }
+      const objective = this.waveObjective;
+      if (target.type !== 'transport' || objective?.type !== 'transport' || objective.phase !== 'active' || objective.carrying) return false;
+      objective.carrying = true; objective.position = objective.deliveryPosition; objective.progress = 0;
+      this.arena.setObjectiveZone?.(objective);
+      this._refreshObjectiveText();
+      this.ui.announce('MODULE PRIS EN CHARGE', 'REJOIGNEZ LE SCEAU', 'Vous pouvez tirer ; vos déplacements sont ralentis.',2.5);
+      return true;
+    }
+
     _buildMenuScene() {
       this.wave = 8;
       this.difficulty = D.DIFFICULTIES.unstable;
@@ -265,12 +479,19 @@
     }
 
     startRun(classId = 'bulwark', difficultyId = 'unstable', modeId = 'campaign', sectorId = 'sanctum') {
+      if (modeId === 'story' && !NT.Story?.getMission) { this.ui.toast?.('HISTOIRE INDISPONIBLE','Rechargez le jeu pour retrouver les données du dossier.','error'); return false; }
       this.audio.init();
       this.lastClassId = ownedId(D.CLASSES, classId) ? classId : 'bulwark';
       this.lastDifficultyId = ownedId(D.DIFFICULTIES, difficultyId) ? difficultyId : 'unstable';
       this.modeId = ownedId(RUN_MODES, modeId) ? modeId : 'campaign';
       const sectorIds = Object.keys(D.SECTORS || {});
       this.sectorId = ownedId(D.SECTORS, sectorId) ? sectorId : sectorIds[0] || 'sanctum';
+      this.story = this.modeId === 'story' ? this._newStoryState() : null;
+      this.pendingStoryChoice = null;
+      this.currentStoryMission = null;
+      this.currentStoryChapter = null;
+      this.storyArchives = [];
+      if (this.modeId === 'story') this.sectorId = NT.Story?.getChapter(1)?.sectorId || 'sanctum';
       this.difficulty = D.DIFFICULTIES[this.lastDifficultyId];
       this.currentModifier = D.WAVE_MODIFIERS[0];
       this.wave = 0;
@@ -348,6 +569,12 @@
       this.extractionActive = false;
       this.waveObjective = null;
       this.arena.setObjectiveZone?.(null);
+      this.pendingStoryChoice = null;
+      this.story = null;
+      this.storyArchives = [];
+      this.currentStoryMission = null;
+      this.currentStoryChapter = null;
+      this.ui.hideStoryChoice?.();
       this.input.exitLock();
       this.enemies.length = 0;
       this.projectiles.length = 0;
@@ -386,6 +613,7 @@
       this.waveActive = false;
       this.intermissionActive = false;
       this.extractionActive = false;
+      this.pendingStoryChoice = null;
       this.arena.setObjectiveZone?.(null);
       this.deathTimer = 2.1;
       this.objectiveText = 'SIGNATURE VITALE PERDUE';
@@ -412,9 +640,11 @@
       records.headshots = (records.headshots || 0) + this.stats.headshots;
       records.damage = (records.damage || 0) + this.stats.damage;
       records.playTime = (records.playTime || 0) + this.runTime;
+      const ending = outcome === 'victory' && this.modeId === 'story' ? NT.Story?.getEnding(this.story?.choices) : null;
+      const milestones = outcome === 'victory' ? this._progressEvent?.({ type:'victory', modeId:this.modeId, sectorId:this.sectorId, classId:this.lastClassId, difficultyId:this.lastDifficultyId, endingId:ending?.id }) : null;
       this.save.data.activeRun = null;
       this.save.save();
-      const results = { outcome, wave:this.wave, sectors:outcome === 'victory' ? 1 : 0, kills:this.stats.kills, score:this.score, shards };
+      const results = { outcome, wave:this.wave, sectors:outcome === 'victory' ? (this.modeId === 'story' ? 3 : 1) : 0, kills:this.stats.kills, score:this.score, shards:shards+(milestones?.reward || 0), storyEnding:ending || null };
       if (showScreen) {
         if (outcome === 'victory') {
           this.state = 'victory';
@@ -437,7 +667,7 @@
         this.audio.update?.(dt, 0, .08, false);
         return;
       }
-      if (this.state === 'paused' || this.state === 'upgrade' || this.state === 'gameover' || this.state === 'victory' || this.state === 'error') {
+      if (this.state === 'paused' || this.state === 'upgrade' || this.state === 'story-choice' || this.state === 'gameover' || this.state === 'victory' || this.state === 'error') {
         this.audio.update?.(dt, 0, .05, false);
         return;
       }
@@ -501,6 +731,14 @@
     }
 
     _handleInteraction() {
+      if (this.modeId === 'story') {
+        const target = this._interactionTarget();
+        if (!target || !this.input.consume('KeyE')) return;
+        if (target.type === 'station') {
+          if (this.arena.activateStation(target.station) && this.intermissionActive) this._checkpointActiveRun(this.wave + 1);
+        } else this._activateStoryInteraction(target);
+        return;
+      }
       const station = this.arena.nearestStation(this.player.position);
       if (station && this.input.consume('KeyE') && this.arena.activateStation(station) && this.intermissionActive) {
         this._checkpointActiveRun(this.wave + 1);
@@ -584,6 +822,10 @@
     }
 
     startNextWave() {
+      if (this.modeId === 'story') {
+        if (this.pendingStoryChoice || this.story?.pendingChoiceId || this.wave >= 10) return false;
+        this._prepareStoryWave(this.wave + 1);
+      }
       this.wave++;
       this.waveActive = true;
       this.pendingUpgrade = false;
@@ -612,6 +854,12 @@
       if (bossWave) this.ui.subtitle(bossType === 'archdeacon' ? 'Coupez ses relais avant que la Souillure ne vous immobilise.' : 'Sa couronne marque les condamnés. Brisez ses phases.', 4);
       else if (this.waveObjective?.type === 'hold') this.ui.subtitle('Maintenez le sceau jusqu’à sa stabilisation, puis éliminez les survivants.', 3.4);
       else if (this.waveObjective?.type === 'hunt') this.ui.subtitle('Les signatures marquées alimentent la brèche. Abattez-les en priorité.', 3.4);
+      if (this.modeId === 'story' && this.currentStoryMission) {
+        this._progressEvent({type:'mission',wave:this.wave},true);
+        this.ui.announce(this.currentStoryChapter?.title || 'LITURGIE NERVEUSE', this.currentStoryMission.title, this.currentStoryMission.text, 4);
+        this.ui.subtitle(this.currentStoryMission.speaker + ' — ' + this.currentStoryMission.text, 6);
+      }
+      return true;
     }
 
     _pickModifier() {
@@ -631,7 +879,12 @@
         return;
       }
       const rotation = ['purge','hold','hunt'];
-      const type = rotation[(this.wave - 1) % rotation.length];
+      const missionObjective = this.modeId === 'story' ? NT.Story?.getMission(this.wave)?.objective : null;
+      const type = missionObjective?.type || rotation[(this.wave - 1) % rotation.length];
+      if (type === 'relay' || type === 'transport') {
+        this._configureStoryObjective(missionObjective);
+        return;
+      }
       if (type === 'hold') {
         const fallbacks = [[-10,0,8],[10,0,8],[0,0,-7],[0,0,14]];
         const sector = D.SECTORS?.[this.sectorId];
@@ -672,6 +925,13 @@
         this.objectiveText = objective.phase === 'cleanup'
           ? 'MARQUES ROMPUES · PURGEZ LES SURVIVANTS'
           : 'ABATTEZ LES MARQUÉS · ' + Math.max(0, objective.remaining) + ' / ' + objective.target;
+      } else if (objective.type === 'relay') {
+        this.objectiveText = objective.phase === 'cleanup' ? 'RELAIS COUPÉS · PURGEZ LES SURVIVANTS'
+          : 'RELAIS ' + (objective.index + 1) + ' / ' + objective.total + ' · TENEZ ' + Math.ceil(Math.max(0, objective.duration - objective.progress)) + ' S';
+      } else if (objective.type === 'transport') {
+        this.objectiveText = objective.phase === 'cleanup' ? 'MODULE DÉPOSÉ · PURGEZ LES SURVIVANTS'
+          : objective.carrying ? 'PORTEZ LE MODULE AU SCEAU · ' + Math.ceil(Math.max(0, objective.duration - objective.progress)) + ' S'
+          : 'REJOIGNEZ ET PRENEZ LE MODULE';
       } else {
         this.objectiveText = 'PURGEZ TOUTES LES SIGNATURES';
       }
@@ -680,6 +940,11 @@
     _updateWaveObjective(dt) {
       const objective = this.waveObjective;
       if (!objective || objective.phase !== 'active') return;
+      if (objective.type === 'relay' || objective.type === 'transport') {
+        this._updateStoryObjective(dt);
+        this._refreshObjectiveText();
+        return;
+      }
       if (objective.type === 'hold') {
         const inside = this.player.position.distanceToXZ(objective.position) <= objective.radius;
         objective.progress = inside
@@ -724,11 +989,15 @@
 
     _canCompleteWave() {
       if (!this.waveActive || this.extractionActive) return false;
-      if (this.waveObjective?.phase === 'active' && (this.waveObjective.type === 'hold' || this.waveObjective.type === 'hunt')) return false;
+      if (this.waveObjective?.phase === 'active' && ['hold','hunt','relay','transport'].includes(this.waveObjective.type)) return false;
       return !this.spawnQueue.length && !this.enemies.some(enemy => enemy.alive);
     }
 
     _beginIntermission(duration = this.intermissionDuration) {
+      if (this.modeId === 'story') {
+        if (this._openStoryChoice()) return false;
+        this._prepareStoryWave(this.wave + 1);
+      }
       this.waveActive = false;
       this.pendingUpgrade = false;
       this.intermissionActive = true;
@@ -776,7 +1045,7 @@
     }
 
     _beginExtraction() {
-      if (this.extractionActive || this.modeId !== 'campaign' || this.wave !== 10) return false;
+      if (this.extractionActive || !['campaign','story'].includes(this.modeId) || this.wave !== 10) return false;
       this.waveActive = true;
       this.spawnQueue.length = 0;
       this.spawnsRemaining = 0;
@@ -818,6 +1087,11 @@
     continueEndless() {
       if (this.state !== 'victory') return false;
       this.modeId = 'endless';
+      this.story = null;
+      this.pendingStoryChoice = null;
+      this.storyArchives = [];
+      this.currentStoryMission = null;
+      this.currentStoryChapter = null;
       this.runFinalized = false;
       this.state = 'playing';
       this.score = 0;
@@ -870,13 +1144,14 @@
         weaponStates[id] = { mag:state.mag, reserve:state.reserve, maxReserve:state.maxReserve };
       }
       return {
-        version:1,
+        version:2,
         savedAt:Date.now(),
         classId:this.lastClassId,
         difficultyId:this.lastDifficultyId,
         modeId:this.modeId,
         sectorId:this.sectorId,
         nextWave,
+        story:this.modeId === 'story' ? E.structuredCloneSafe(this.story || this._newStoryState()) : null,
         score:this.score,
         runTime:this.runTime,
         stats:{ ...this.stats },
@@ -898,7 +1173,6 @@
 
     _checkpointActiveRun(nextWave = this.wave + 1) {
       if (this.runFinalized || this.state === 'dying' || this.state === 'victory' || this.state === 'gameover') return false;
-      this.save.data.version = 2;
       this.save.data.activeRun = this._snapshotActiveRun(nextWave);
       const saved = this.save.save();
       if (!saved) this.ui.toast?.('SAUVEGARDE INDISPONIBLE', 'La reprise de tentative ne peut pas être garantie.', 'error');
@@ -913,7 +1187,7 @@
     }
 
     _validateActiveRun(raw) {
-      if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.version !== 1) return null;
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw) || ![1,2].includes(raw.version)) return null;
       const number = (value, min, max, fallback = min) => {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? clamp(parsed, min, max) : fallback;
@@ -972,10 +1246,13 @@
           maxReserve
         };
       }
-      const maxWave = modeId === 'campaign' ? 10 : 9999;
+      const maxWave = modeId === 'endless' ? 9999 : 10;
+      const nextWave = Math.floor(number(raw.nextWave, 1, maxWave, 1));
+      const story = modeId === 'story' ? this._validateStoryState(raw.story, nextWave, sectorId) : null;
+      if (modeId === 'story' && (raw.version !== 2 || !story)) return null;
       return {
-        version:1, classId, difficultyId, modeId, sectorId,
-        nextWave:Math.floor(number(raw.nextWave, 1, maxWave, 1)),
+        version:2, classId, difficultyId, modeId, sectorId, story,
+        nextWave,
         score:number(raw.score, 0, 1e12, 0),
         runTime:number(raw.runTime, 0, 1e9, 0),
         stats,
@@ -1016,6 +1293,11 @@
       this.lastDifficultyId = snapshot.difficultyId;
       this.modeId = snapshot.modeId;
       this.sectorId = snapshot.sectorId;
+      this.story = snapshot.story ? E.structuredCloneSafe(snapshot.story) : null;
+      this.pendingStoryChoice = null;
+      this.storyArchives = [];
+      this.currentStoryMission = null;
+      this.currentStoryChapter = null;
       this.difficulty = D.DIFFICULTIES[this.lastDifficultyId];
       this.currentModifier = D.WAVE_MODIFIERS[0];
       this.wave = snapshot.nextWave - 1;
@@ -1079,8 +1361,10 @@
       this.previousState = 'playing';
       this.ui.enterGame();
       this._beginIntermission(15);
-      this.ui.announce('CHECKPOINT RESTAURÉ', 'OFFICE ' + String(snapshot.nextWave).padStart(2,'0'), this.difficulty.name, 2.6);
-      this.input.requestLock();
+      if (this.state !== 'story-choice') {
+        this.ui.announce('CHECKPOINT RESTAURÉ', 'OFFICE ' + String(snapshot.nextWave).padStart(2,'0'), this.difficulty.name, 2.6);
+        this.input.requestLock();
+      }
       return true;
     }
 
@@ -1154,6 +1438,8 @@
       this.pendingUpgrade = true;
       this.waveCompleteTimer = 2.15;
       this.stats.wavesCleared++;
+      if (['purge','hold','hunt','relay','transport'].includes(this.waveObjective?.type)) this._progressEvent?.({ type:'objective', kind:this.waveObjective.type });
+      if (this.modeId === 'endless') this._progressEvent?.({ type:'endless', wave:this.wave });
       const award = Math.round((45 + this.wave * 18) * this.difficulty.reward);
       this.player.essence += award;
       const healRate = this.currentModifier?.healingRate ?? 1;
@@ -1186,6 +1472,7 @@
     }
 
     applyUpgrade(upgrade) {
+      if (this.persistenceBlocked || this.graphicsUnavailable) return false;
       const effects = upgrade.effects || {};
       this.player.upgradeStacks[upgrade.id] = (this.player.upgradeStacks[upgrade.id] || 0) + 1;
       const mod = this.player.modifiers;
@@ -1228,7 +1515,7 @@
       this.state = 'playing';
       this.currentModifier = D.WAVE_MODIFIERS[0];
       this._beginIntermission();
-      this.input.requestLock();
+      if (this.state !== 'story-choice') this.input.requestLock();
     }
 
     spawnEnemy(type, position = null, options = {}) {
@@ -1368,6 +1655,7 @@
       }
       if (enemy.boss) {
         this.stats.bossKills++;
+        this._progressEvent?.({ type:'boss', id:enemy.type });
         this.player.essence += 500;
         this.ui.announce('SEUIL PROFANÉ', `${enemy.config.name.toUpperCase()} EST TOMBÉ`, '+500 essence · le portail vacille', 3);
         this.arena.triggerGatePulse(2);
@@ -1399,7 +1687,7 @@
         this.explode(enemy.position, enemy.boss ? 7 : 4.2, this.player.modifiers.ruptureDamage || 62, { playerOwned:true, source:'rupture', color:0x9a2937 });
       }
       this.audio.enemy('death', enemy.position, this.player.position, this.camera.yaw);
-      if (enemy.boss && this.modeId === 'campaign' && this.wave === 10) this._beginExtraction();
+      if (enemy.boss && ['campaign','story'].includes(this.modeId) && this.wave === 10) this._beginExtraction();
     }
 
     _dropPickup(enemy) {

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.0 — 2026-08-31 — Les voix du Nœud
+
+- Nouveau mode Histoire : dix offices traversant trois secteurs ; les modes sectoriel et sans fin sont préservés.
+- Trois interlocuteurs originaux, transmissions progressives, deux décisions avec bénéfices/coûts explicites, trois épilogues et variante de conclusion selon les quatre combinaisons.
+- Relais à stabiliser dans l’ordre et transport interactif d’un module ralentissant les déplacements de 22 % ; renforts et phase de purge finale.
+- Six archives physiques accessibles avec clavier ou tactile, journal en pause sans spoilers et représentation originale en 3D temps réel.
+- Vingt accomplissements persistants, suivi de complétion, prochaines actions et récompenses uniques en fragments.
+- Sauvegarde racine v3, checkpoint v2, migration stricte des anciens dossiers ; décisions non résolues reprises sans application automatique ni double bénéfice.
+- Choix bloqués sans mutation lors d’un conflit de sauvegarde ou d’une perte graphique ; export du brouillon conservé.
+- Contrats narratifs, progression/migrations, campagnes assistées et nouveaux parcours Chrome desktop/mobile ; ressources narratives précachées avec intégrité SRI.
+
 ## 1.2.1 — 2026-08-31 — Commandes et continuité protégées
 
 - Personnalisation de vingt actions clavier/souris, validation des conflits, réinitialisation confirmée et indications de HUD/briefing actualisées. Les commandes tactiles restent indépendantes.

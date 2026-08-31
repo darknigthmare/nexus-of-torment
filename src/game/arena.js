@@ -26,6 +26,7 @@
       this.objectiveZone = null;
       this.gatePulse = 0;
       this.materials = this._createMaterials();
+      this.storyArtifactTransform = new Transform();
       this.setSector('sanctum');
     }
 
@@ -51,7 +52,10 @@
         shock: new Material({ color:0x18454b, emissive:0x49e0e8, pattern:3, alpha:.62, doubleSided:true, additive:true, depthWrite:false, pulse:1.4 }),
         objectiveRitual: new Material({ color:0x5c0710, emissive:0xff3945, pattern:3, alpha:.34, doubleSided:true, additive:true, depthWrite:false, pulse:1.1 }),
         objectiveAmber: new Material({ color:0x5a3b1c, emissive:0xf1a24f, pattern:3, alpha:.34, doubleSided:true, additive:true, depthWrite:false, pulse:1.05 }),
-        objectiveCyan: new Material({ color:0x15494d, emissive:0x60f3ee, pattern:3, alpha:.36, doubleSided:true, additive:true, depthWrite:false, pulse:1.15 })
+        objectiveCyan: new Material({ color:0x15494d, emissive:0x60f3ee, pattern:3, alpha:.36, doubleSided:true, additive:true, depthWrite:false, pulse:1.15 }),
+        storyArchive: new Material({ color:0x8cd3c6, emissive:0x29534f, pattern:1, metallic:.6 }),
+        storyCollected: new Material({ color:0x36524f, emissive:0x091917, pattern:1, metallic:.6 }),
+        storyWitness: new Material({ color:0xdfbe8c, emissive:0x755127, pattern:2, metallic:.15 })
       };
     }
 
@@ -478,7 +482,35 @@
       }
       for(const decal of this.decals) r.draw(this.meshes.plane,decal.matrix,decal.material);
       this._drawObjectiveZone(time);
+      this._drawStoryObjects(time);
       this._drawHazards(time);
+    }
+
+    _drawStoryObjects(time) {
+      if (this.game.modeId !== 'story') return;
+      for (const archive of this.game.storyArchives || []) this._drawStoryArtifact(archive.position,archive.collected,false,time);
+      const objective = this.game.waveObjective;
+      if (objective?.type === 'transport' && !objective.carrying) {
+        this._drawStoryArtifact(objective.phase === 'cleanup' ? objective.deliveryPosition : objective.pickupPosition,objective.phase === 'cleanup',true,time);
+      }
+    }
+
+    _drawStoryArtifact(position,collected,witness,time) {
+      if (!position) return;
+      // Trois pièces originales, un transform réutilisé, aucune émission
+      // d’effets par image. Une archive lue garde un repère physique assombri.
+      const transform = this.storyArtifactTransform, renderer = this.renderer;
+      const material = collected ? this.materials.storyCollected : witness ? this.materials.storyWitness : this.materials.storyArchive;
+      const angle = this.game.settings?.reducedMotion ? 0 : time*.18;
+      transform.position.set(position.x,position.y+.12,position.z);
+      transform.rotation.set(0,0,0); transform.scale.set(.85,.24,.85); transform.updateMatrix();
+      renderer.draw(this.meshes.cube,transform.matrix,this.materials.steel);
+      transform.position.y = position.y+.88;
+      transform.rotation.set(0,angle,0); transform.scale.set(witness?.58:.48,witness?.88:.72,.28); transform.updateMatrix();
+      renderer.draw(this.meshes.cube,transform.matrix,material);
+      transform.position.y = position.y+1.52;
+      transform.scale.set(.2,.2,.2); transform.updateMatrix();
+      renderer.draw(witness?this.meshes.sphere8:this.meshes.cube,transform.matrix,material);
     }
 
     addBloodDecal(position,size=1,color=0x4c080d) {

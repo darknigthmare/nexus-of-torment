@@ -1110,6 +1110,11 @@
         return keys.length === Object.keys(b).length && keys.every(key => Object.prototype.hasOwnProperty.call(b, key) && equalData(a[key], b[key]));
       };
       const walk = (value, template, path = '') => {
+        if (path === 'progression' && NT.Progression) {
+          const result = NT.Progression.normalize(value, { strict });
+          if (result.repaired) invalid(path);
+          return result.data;
+        }
         if (path === 'settings.bindings') {
           const result = Input.validateBindings(value);
           if (!result.valid) invalid(path);
@@ -1117,14 +1122,20 @@
         }
         if (path === 'activeRun') {
           if (value === null) return null;
-          if (!plain(value) || value.version !== 1 || !checkTree(value, path)) { invalid(path); return null; }
+          if (!plain(value) || ![1,2].includes(value.version) || !checkTree(value, path)) { invalid(path); return null; }
           const validator = NT.NexusGame?.prototype?._validateActiveRun;
           if (!validator) return structuredCloneSafe(value);
           let canonical;
           try { canonical = validator.call(NT.NexusGame.prototype, value); } catch { canonical = null; }
           if (!canonical) { invalid(path); return null; }
           if (Number.isFinite(value.savedAt) && value.savedAt >= 0) canonical.savedAt = value.savedAt;
-          if (!equalData(value, canonical)) invalid(path);
+          // Migration explicite du checkpoint v1 : comparer d’abord son contrat
+          // historique complet, sans accepter des valeurs invalides sous prétexte
+          // de migration. La seule extension légitime est v2 + story:null.
+          const compared = value.version === 1 && canonical.version === 2
+            ? { ...canonical, version:1 } : canonical;
+          if (compared !== canonical) delete compared.story;
+          if (!equalData(value, compared)) invalid(path);
           return canonical;
         }
         if (plain(template)) {
