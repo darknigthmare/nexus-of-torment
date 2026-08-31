@@ -61,7 +61,7 @@ export async function auditBindingsMenu(page, verify, shots) {
   verify('Commandes desktop : fermeture restaure les réglages et le focus', await page.locator('#settings-screen').isVisible() && await page.locator('#bindings-button').evaluate(element => document.activeElement === element));
   await page.locator('[data-close="settings-screen"]').click();
 
-  await page.reload({waitUntil:'networkidle'});
+  await page.reload({waitUntil:'domcontentloaded'});
   await page.waitForFunction(() => window.nexusGame?.state === 'menu', null, {timeout:15000});
   const restored = await page.evaluate(() => {
     const g = window.nexusGame;

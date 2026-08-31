@@ -224,7 +224,7 @@ try {
   });
   const page = await desktop.newPage();
   observePage(page, 'desktop');
-  const response = await page.goto(url, { waitUntil:'networkidle', timeout:20000 });
+  const response = await page.goto(url, { waitUntil:'domcontentloaded', timeout:20000 });
   verify('Chargement HTTP desktop', response?.ok(), response?.status());
   await ready(page);
   const boot = await snapshot(page);
@@ -347,7 +347,7 @@ try {
     return { saved, next:g.save.data.activeRun?.nextWave };
   });
   verify('Checkpoint écrit', checkpoint.saved && checkpoint.next === 4, checkpoint);
-  await page.reload({ waitUntil:'networkidle' });
+  await page.reload({ waitUntil:'domcontentloaded' });
   await ready(page);
   verify('Bouton continuer après rechargement', await page.locator('#continue-button').isVisible());
   await page.evaluate(() => { window.nexusGame.input.touchMode = true; });
@@ -476,7 +476,7 @@ try {
   });
   const mobilePage = await mobile.newPage();
   observePage(mobilePage, 'mobile');
-  const mobileResponse = await mobilePage.goto(url, { waitUntil:'networkidle', timeout:20000 });
+  const mobileResponse = await mobilePage.goto(url, { waitUntil:'domcontentloaded', timeout:20000 });
   verify('Chargement HTTP mobile', mobileResponse?.ok(), mobileResponse?.status());
   await ready(mobilePage);
   const responsive = await mobilePage.evaluate(() => ({

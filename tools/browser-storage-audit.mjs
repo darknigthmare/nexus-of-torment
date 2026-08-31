@@ -36,7 +36,7 @@ export async function auditStorageTabs(browser, verify, url, shots, observePage)
   try {
     const owner = await context.newPage();
     observePage(owner, 'storage-owner');
-    const response = await owner.goto(url, { waitUntil:'networkidle', timeout:20000 });
+    const response = await owner.goto(url, { waitUntil:'domcontentloaded', timeout:20000 });
     if (!response?.ok()) throw new Error('HTTP audit stockage : ' + response?.status());
     await menuReady(owner);
     const baseline = await owner.evaluate(() => {
@@ -50,7 +50,7 @@ export async function auditStorageTabs(browser, verify, url, shots, observePage)
 
     const stale = await context.newPage();
     observePage(stale, 'storage-stale');
-    await stale.goto(url, { waitUntil:'networkidle', timeout:20000 });
+    await stale.goto(url, { waitUntil:'domcontentloaded', timeout:20000 });
     await menuReady(stale);
     const loaded = await stale.evaluate(() => ({
       shards:window.nexusGame.save.data.shards,
@@ -144,7 +144,7 @@ export async function auditFutureSave(browser, verify, url, shots, observePage) 
       localStorage.setItem(key+':recovery',previousRecovery);
       sessionStorage.setItem('nexus-qa-future-seeded','1');
     }, {key:SAVE_KEY,raw,previousRecovery});
-    const response = await page.goto(url, { waitUntil:'networkidle', timeout:20000 });
+    const response = await page.goto(url, { waitUntil:'domcontentloaded', timeout:20000 });
     if (!response?.ok()) throw new Error('HTTP audit version future : ' + response?.status());
     await menuReady(page);
     const protectedSave = await page.evaluate(({raw,previousRecovery}) => {

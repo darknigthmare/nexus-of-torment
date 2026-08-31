@@ -129,7 +129,7 @@ export async function auditRecovery(page, verify, url) {
       sessionStorage.setItem('nexus-recovery-seeded', '1');
     }
   });
-  await page.goto(url, { waitUntil:'networkidle' });
+  await page.goto(url, { waitUntil:'domcontentloaded' });
   await page.waitForFunction(() => window.nexusGame?.state === 'menu');
   const recovery = await page.evaluate(() => ({
     safe:window.nexusGame.save.data.records.bestWave === 0,

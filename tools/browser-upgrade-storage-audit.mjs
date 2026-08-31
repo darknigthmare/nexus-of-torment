@@ -10,7 +10,7 @@ export async function auditUpgradeConflict(browser, verify, url, observePage = n
   const ready = page => page.waitForFunction(()=>window.nexusGame?.state==='menu',null,{timeout:15000});
   try {
     const page = await context.newPage(); observe(page,'upgrade-conflict');
-    await page.goto(url,{waitUntil:'networkidle',timeout:20000}); await ready(page);
+    await page.goto(url,{waitUntil:'domcontentloaded',timeout:20000}); await ready(page);
     await page.locator('#mode').selectOption('story'); await page.locator('#start-button').click();
     // Frontière assistée explicitement : checkpoint avant l'office 3, puis vraie
     // présentation des greffes. Ce n'est pas une victoire de combat sans aide.
@@ -29,7 +29,7 @@ export async function auditUpgradeConflict(browser, verify, url, observePage = n
       await page.locator('#upgrade-screen').isVisible() && await page.locator('#upgrade-settings').isVisible() &&
       await page.evaluate(()=>window.nexusGame.state==='upgrade'&&typeof window.nexusGame.ui.upgradeCallback==='function'));
     const peer = await context.newPage(); observe(peer,'upgrade-conflict-peer');
-    await peer.goto(url,{waitUntil:'networkidle',timeout:20000}); await ready(peer);
+    await peer.goto(url,{waitUntil:'domcontentloaded',timeout:20000}); await ready(peer);
     const latest = await peer.evaluate(key=>{
       const save=window.nexusGame.save;
       if (save.key!==key) throw new Error('Clés de dossier différentes.');

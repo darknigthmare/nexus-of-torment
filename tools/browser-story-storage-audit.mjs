@@ -24,7 +24,7 @@ export async function auditStoryConflict(context, page, verify, observePage = nu
     peer = await context.newPage();
     peer.on('pageerror', error => peerErrors.push(String(error.message || error)));
     observePage?.(peer, 'story-storage-peer');
-    const response = await peer.goto(page.url(), {waitUntil:'networkidle',timeout:20000});
+    const response = await peer.goto(page.url(), {waitUntil:'domcontentloaded',timeout:20000});
     if (!response?.ok()) throw new Error('HTTP onglet pair histoire : ' + response?.status());
     await peer.waitForFunction(() => window.nexusGame?.state === 'menu' ||
       !document.querySelector('#webgl-fallback')?.classList.contains('hidden'), null, {timeout:15000});

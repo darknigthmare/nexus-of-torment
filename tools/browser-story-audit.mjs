@@ -64,7 +64,7 @@ export async function auditStory(browser,verify,url,shots,observePage) {
   const context=await browser.newContext({viewport:{width:1280,height:720},colorScheme:'dark',serviceWorkers:'allow'});
   const page=await context.newPage(); observePage(page,'story');
   try {
-    await page.goto(url,{waitUntil:'networkidle'}); await ready(page);
+    await page.goto(url,{waitUntil:'domcontentloaded'}); await ready(page);
     verify('Histoire proposée avec trajet imposé et vingt accomplissements',await page.evaluate(()=>{
       const g=window.nexusGame;
       return document.querySelector('#mode').value==='story' && document.querySelector('#sector').disabled && window.NT.Progression.summary(g.save.data.progression).total===20;
@@ -127,7 +127,7 @@ export async function auditStory(browser,verify,url,shots,observePage) {
             await page.keyboard.press('Escape');
             verify('Échap ne choisit pas et ne reprend pas le combat',await page.evaluate(()=>window.nexusGame.state==='story-choice'&&!window.nexusGame.story.choices.protocol));
             await auditStoryConflict(context,page,verify,observePage);
-            await page.reload({waitUntil:'networkidle'}); await ready(page); await page.locator('#continue-button').click();
+            await page.reload({waitUntil:'domcontentloaded'}); await ready(page); await page.locator('#continue-button').click();
             await page.locator('#story-choice-screen').waitFor({state:'visible'});
             verify('Reprise au choix non résolu sans fausse réparation',await page.evaluate(raw=>{const g=window.nexusGame,old=JSON.parse(raw);return g.story.pendingChoiceId==='protocol'&&!g.save.status.recovered&&g.player.maxHealth===old.player.maxHealth&&g.player.maxArmor===old.player.maxArmor;},before));
           }
@@ -145,7 +145,7 @@ export async function auditStory(browser,verify,url,shots,observePage) {
     verify('Trois fins et six archives visibles dans le dossier',await page.evaluate(()=>{const s=window.NT.Progression.summary(window.nexusGame.save.data.progression);return s.archives.completed===6&&s.endings.completed===3&&s.storyWave===10&&document.querySelectorAll('.completion-card').length===20;}));
     await page.screenshot({path:path.join(shots,'v1.3-completion.png')});
     const raw=await page.evaluate(()=>window.nexusGame.save.exportJSON());
-    await page.reload({waitUntil:'networkidle'}); await ready(page);
+    await page.reload({waitUntil:'domcontentloaded'}); await ready(page);
     verify('Dossier narratif persistant après rechargement sans réparation',await page.evaluate(before=>window.nexusGame.save.exportJSON()===before&&!window.nexusGame.save.status.recovered,raw));
   } catch(error) {
     const state=await page.evaluate(()=>{const g=window.nexusGame;return {state:g.state,wave:g.wave,sector:g.sectorId,story:g.story,save:g.save.status,position:g.player.position,interaction:g.interactionPrompt(),target:g._interactionTarget()?.id,keys:[...g.input.keys],touch:g.input.touchMode,enabled:g.input.enabled,focus:document.activeElement?.outerHTML?.slice(0,240),archives:g.storyArchives.map(a=>({id:a.id,position:a.position,collected:a.collected}))};}).catch(()=>null);
@@ -156,7 +156,7 @@ export async function auditStory(browser,verify,url,shots,observePage) {
   const mobile=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true,colorScheme:'dark'});
   const touch=await mobile.newPage(); observePage(touch,'story-mobile');
   try {
-    await touch.goto(url,{waitUntil:'networkidle'}); await ready(touch);
+    await touch.goto(url,{waitUntil:'domcontentloaded'}); await ready(touch);
     await touch.locator('#start-button').tap();
     await touch.evaluate(()=>{window.nexusGame.player.invulnerable=120;});
     const id=await touch.evaluate(()=>window.nexusGame.storyArchives[0].id);

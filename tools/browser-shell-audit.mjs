@@ -5,9 +5,9 @@ export async function auditShellRepair(browser, verify, url, observePage) {
   const page = await context.newPage();
   observePage(page, 'shell-repair', ['status of 503', 'Failed to find a valid digest']);
   try {
-    await page.goto(url, { waitUntil:'networkidle' });
+    await page.goto(url, { waitUntil:'domcontentloaded' });
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
-    await page.reload({ waitUntil:'networkidle' });
+    await page.reload({ waitUntil:'domcontentloaded' });
     await page.waitForFunction(() => window.nexusGame?.state === 'menu' && navigator.serviceWorker.controller);
     const before = await page.evaluate(async () => {
       const keys = (await caches.keys()).filter(key => key.startsWith('nexus-of-torment-'));
