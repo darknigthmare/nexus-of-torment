@@ -1,0 +1,14 @@
+.git
+.git/**
+.vercel
+.vercel/**
+.qa
+.qa/**
+.env
+.env.*
+node_modules
+node_modules/**
+dist
+dist/**
+docs
+docs/**

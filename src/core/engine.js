@@ -941,15 +941,154 @@
   }
 
   class SaveStore {
-    constructor(key, defaults = {}) { this.key = key; this.defaults = defaults; this.data = this.load(); }
+    constructor(key, defaults = {}) {
+      this.key = key;
+      this.defaults = structuredCloneSafe(defaults);
+      this.status = { available:true, dirty:false, recovered:false, error:null };
+      this.recoveryBackup = null;
+      this.data = this.load();
+    }
+    _notify() {
+      if (typeof document !== 'undefined' && typeof CustomEvent === 'function') {
+        document.dispatchEvent(new CustomEvent('nt-save-status', { detail:{ ...this.status } }));
+      }
+    }
+    _normalize(raw, strict = false) {
+      const issues = [];
+      const invalid = path => { issues.push(path || 'racine'); };
+      const plain = value => Boolean(value && typeof value === 'object' && !Array.isArray(value));
+      const forbidden = key => ['__proto__', 'prototype', 'constructor'].includes(key);
+      const limits = {
+        'settings.sensitivity':[.25,2.5], 'settings.volume':[0,1], 'settings.fov':[65,105],
+        'settings.renderScale':[.55,1.5], 'settings.hudScale':[.75,1.3], 'settings.shakeIntensity':[0,1]
+      };
+      const checkTree = (value, path = '', depth = 0) => {
+        if (depth > 12) { invalid(path); return false; }
+        if (typeof value === 'number') return Number.isFinite(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER;
+        if (typeof value === 'string') return value.length <= 4096;
+        if (value === null || typeof value === 'boolean') return true;
+        if (!value || typeof value !== 'object' || (Array.isArray(value) && value.length > 128)) return false;
+        return Object.entries(value).every(([key, entry]) => !forbidden(key) && checkTree(entry, path + '.' + key, depth + 1));
+      };
+      const equalData = (a, b) => {
+        if (a === b) return true;
+        if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+        const keys = Object.keys(a);
+        return keys.length === Object.keys(b).length && keys.every(key => Object.prototype.hasOwnProperty.call(b, key) && equalData(a[key], b[key]));
+      };
+      const walk = (value, template, path = '') => {
+        if (path === 'activeRun') {
+          if (value === null) return null;
+          if (!plain(value) || value.version !== 1 || !checkTree(value, path)) { invalid(path); return null; }
+          const validator = NT.NexusGame?.prototype?._validateActiveRun;
+          if (!validator) return structuredCloneSafe(value);
+          let canonical;
+          try { canonical = validator.call(NT.NexusGame.prototype, value); } catch { canonical = null; }
+          if (!canonical) { invalid(path); return null; }
+          if (Number.isFinite(value.savedAt) && value.savedAt >= 0) canonical.savedAt = value.savedAt;
+          if (!equalData(value, canonical)) invalid(path);
+          return canonical;
+        }
+        if (plain(template)) {
+          if (!plain(value)) { invalid(path); return structuredCloneSafe(template); }
+          const result = {};
+          if (path === 'codex.enemyKills') {
+            for (const [key, count] of Object.entries(value)) {
+              if (forbidden(key) || (NT.Data?.ENEMIES && !Object.prototype.hasOwnProperty.call(NT.Data.ENEMIES, key)) || !Number.isInteger(count) || count < 0 || count > 1e9) { invalid(path + '.' + key); continue; }
+              result[key] = count;
+            }
+            return result;
+          }
+          for (const key of Object.keys(value)) {
+            if (forbidden(key) || !Object.prototype.hasOwnProperty.call(template, key)) invalid(path + '.' + key);
+          }
+          for (const [key, fallback] of Object.entries(template)) {
+            if (forbidden(key)) continue;
+            result[key] = Object.prototype.hasOwnProperty.call(value, key)
+              ? walk(value[key], fallback, path ? path + '.' + key : key)
+              : structuredCloneSafe(fallback);
+          }
+          return result;
+        }
+        if (typeof template === 'number') {
+          let [min, max] = limits[path] || [0, 1e12];
+          if (path.startsWith('meta.')) max = NT.Data?.META_UPGRADES?.[path.slice(5)]?.max ?? 5;
+          if (path === 'version') {
+            if (!Number.isInteger(value) || value < 1 || value > template) invalid(path);
+            return template;
+          }
+          const whole = path === 'shards' || path.startsWith('meta.') || ['records.bestWave','records.bestScore','records.lifetimeKills','records.bossKills','records.headshots','records.runs'].includes(path);
+          if (typeof value !== 'number' || !Number.isFinite(value)) { invalid(path); return template; }
+          const bounded = clamp(whole ? Math.floor(value) : value, min, max);
+          if (bounded !== value) invalid(path);
+          return bounded;
+        }
+        if (typeof value !== typeof template || (template === null && value !== null)) { invalid(path); return structuredCloneSafe(template); }
+        return value;
+      };
+      if (!checkTree(raw)) invalid('structure');
+      if (strict && Object.prototype.hasOwnProperty.call(this.defaults, 'version') && !Object.prototype.hasOwnProperty.call(raw || {}, 'version')) invalid('version');
+      const data = walk(plain(raw) ? raw : {}, this.defaults);
+      if (!plain(raw)) invalid('racine');
+      return { data, repaired:issues.length > 0, error:strict && issues.length ? 'Sauvegarde invalide : ' + [...new Set(issues)].slice(0, 5).join(', ') : null };
+    }
     load() {
+      let raw = null;
       try {
-        const saved = JSON.parse(localStorage.getItem(this.key) || '{}');
-        return deepMerge(structuredCloneSafe(this.defaults), saved);
-      } catch { return structuredCloneSafe(this.defaults); }
+        raw = localStorage.getItem(this.key);
+        if (raw === null) return structuredCloneSafe(this.defaults);
+        if (raw.length > 262144) throw new Error('Sauvegarde trop volumineuse.');
+        const result = this._normalize(JSON.parse(raw));
+        if (result.repaired) this._preserveRecovery(raw);
+        return result.data;
+      } catch (error) {
+        if (raw !== null) this._preserveRecovery(raw);
+        else { this.status.available = false; this.status.error = String(error.message || error); }
+        return structuredCloneSafe(this.defaults);
+      } finally { this._notify(); }
+    }
+    _preserveRecovery(raw) {
+      this.recoveryBackup = raw;
+      this.status.recovered = true;
+      this.status.dirty = true;
+      this.status.error = 'Sauvegarde réparée ; une copie de récupération est conservée.';
+      try { localStorage.setItem(this.key + ':recovery', raw); } catch { /* Copie encore disponible en mémoire. */ }
     }
     save() {
-      try { localStorage.setItem(this.key, JSON.stringify(this.data)); return true; } catch { return false; }
+      try {
+        const result = this._normalize(this.data);
+        if (result.repaired) this.status.recovered = true;
+        // Conserver l’identité de la racine : les transactions UI peuvent encore la restaurer.
+        for (const key of Object.keys(this.data)) delete this.data[key];
+        Object.assign(this.data, result.data);
+        localStorage.setItem(this.key, JSON.stringify(this.data));
+        Object.assign(this.status, { available:true, dirty:false, error:null });
+        return true;
+      } catch (error) {
+        Object.assign(this.status, { available:false, dirty:true, error:String(error.message || error) });
+        return false;
+      } finally { this._notify(); }
+    }
+    exportJSON() { return JSON.stringify(this._normalize(this.data).data, null, 2); }
+    importJSON(text) {
+      if (typeof text !== 'string' || text.length > 262144) return { ok:false, error:'Fichier de sauvegarde invalide ou supérieur à 256 Ko.' };
+      let candidate;
+      try {
+        const parsed = JSON.parse(text);
+        candidate = this._normalize(parsed, true);
+        if (candidate.error) return { ok:false, error:candidate.error };
+        localStorage.setItem(this.key, JSON.stringify(candidate.data));
+      } catch (error) {
+        if (candidate) {
+          Object.assign(this.status, { available:false, dirty:true, error:String(error.message || error) });
+          this._notify();
+        }
+        return { ok:false, error:candidate ? 'Stockage indisponible : import non appliqué.' : 'Le fichier ne contient pas une sauvegarde JSON valide.' };
+      }
+      this.data = candidate.data;
+      Object.assign(this.status, { available:true, dirty:false, recovered:false, error:null });
+      this._notify();
+      return { ok:true, persisted:true };
     }
     reset() { this.data = structuredCloneSafe(this.defaults); this.save(); }
   }
@@ -958,7 +1097,8 @@
   function deepMerge(target, source) {
     if (!source || typeof source !== 'object') return target;
     for (const [key, value] of Object.entries(source)) {
-      if (value && typeof value === 'object' && !Array.isArray(value)) target[key] = deepMerge(target[key] || {}, value);
+      if (['__proto__', 'prototype', 'constructor'].includes(key)) continue;
+      if (value && typeof value === 'object' && !Array.isArray(value)) target[key] = deepMerge(target[key] && typeof target[key] === 'object' ? target[key] : {}, value);
       else target[key] = value;
     }
     return target;

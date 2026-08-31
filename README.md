@@ -2,7 +2,7 @@
 
 **Survival-horror d’action 3D — édition autonome 1.2.0 « Liturgie nerveuse »**
 
-*Nexus of Torment* est un survival-horror d’action original jouable en solo au clavier-souris ou avec ses commandes tactiles. Le projet embarque son moteur WebGL 2, ses modèles 3D procéduraux, ses shaders, son audio synthétisé, son interface, sa progression roguelite et sa sauvegarde locale. La PWA installable reste jouable hors ligne après sa première mise en cache ; aucune bibliothèque, image, musique ou ressource distante n’est nécessaire pendant la partie.
+*Nexus of Torment* est un survival-horror d’action original jouable en solo au clavier-souris ou avec ses commandes tactiles. Le projet embarque son moteur WebGL 2, ses modèles 3D procéduraux, ses shaders, son audio synthétisé, son interface, sa progression roguelite et sa sauvegarde locale. La PWA installable reste jouable hors ligne après sa première mise en cache ; aucune API ni ressource distante n’est nécessaire pendant la partie.
 
 ![Menu principal desktop de la build 1.2](docs/screenshots/v1.2-desktop-menu.png)
 
@@ -34,9 +34,11 @@ npm run build
 npm run qa:release
 ```
 
-`npm start` ne nécessite aucune dépendance d’exécution. Pour la QA, `npm ci` installe l’outillage verrouillé. `npm test` enchaîne la syntaxe, l’audit statique, les tests déterministes du gameplay et 5 tests HTTP. `npm run qa:release` construit ensuite le jeu, exécute les parcours Chrome desktop/mobile/PWA, puis valide strictement la preuve fraîche. Le serveur choisit le port `8080`, puis essaie automatiquement les ports suivants si celui-ci est occupé.
+`npm start` ne nécessite aucune dépendance d’exécution. Pour la QA, `npm ci` installe l’outillage verrouillé. `npm test` enchaîne la syntaxe, l’audit statique, les 72 tests runtime conservés, les contrats de combat/rendu/présentation/résilience/UI et 5 tests HTTP. `npm run qa:release` construit ensuite le jeu, exécute les parcours Chrome desktop/mobile/PWA, puis valide strictement la preuve fraîche. Le serveur choisit le port `8080`, puis essaie automatiquement les ports suivants si celui-ci est occupé.
 
 La QA utilise Chrome installé localement ; `NEXUS_CHROME_PATH` permet de choisir son binaire et `NEXUS_QA_HEADLESS=false` d’afficher la fenêtre. La release exige un rendu matériel à 1280 × 720 natif, une médiane d’au moins 30 FPS et aucun échantillon sous 24 FPS. Une URL passée à `npm run qa:browser -- <URL>` écrit ses preuves séparément dans `.qa/production/`.
+
+Les résultats et mesures courants figurent dans [la preuve navigateur](docs/QA_BROWSER_1.2.json), avec les limites des fixtures dans [le rapport QA](docs/QA_REPORT.md). Les parcours mobiles sont émulés dans Chrome ; ils ne certifient ni Safari, ni un téléphone physique, ni une campagne humaine gagnée sans assistance.
 
 ## Commandes
 
@@ -57,6 +59,8 @@ La QA utilise Chrome installé localement ; `NEXUS_CHROME_PATH` permet de choisi
 | Pause | `Échap` |
 
 Sur desktop, le jeu utilise le verrouillage du pointeur : cliquez dans la scène après le déploiement lorsque le navigateur le demande. Sur écran tactile, les sticks de déplacement et de visée ainsi que les actions de combat apparaissent automatiquement.
+
+Le **Briefing** du menu, aussi accessible depuis la pause, explique objectifs, économie, sauvegarde et commandes. Le guidage de sceau/cible et l’aide initiale peuvent être désactivés dans les réglages. Pendant l’intermission, `Entrée` / `F` ou le bouton tactile « Lancer l’office » permettent d’avancer après le délai de sécurité.
 
 ## Contenu de la build 1.2.0
 
@@ -97,11 +101,19 @@ Le Sanctuaire de Fer, la Nef des Sutures et l’Ossuaire des Crochets possèdent
 
 ### Reprise, mobile et accessibilité
 
-Un checkpoint sécurisé est écrit entre les vagues et restaure la doctrine, la difficulté, le secteur, l’économie et la progression du run. Le même jeu expose des commandes tactiles complètes et des réglages de lisibilité sans désactiver la boucle de combat.
+Un checkpoint validé est écrit entre les vagues et restaure la doctrine, la difficulté, le secteur, l’économie et la progression du run. Le même jeu expose des commandes tactiles complètes et un briefing lisible sur petit écran. Les greffes n’imposent aucun délai de lecture par défaut ; le choix automatique après 24 secondes est une option, suspendue lorsque l’onglet est caché.
+
+Le contraste ennemi agit sur les matériaux et distingue les têtes ; les flashs réduits suppriment l’éclair blanc plein corps et atténuent celui des armes. Le redémarrage, l’abandon et le remplacement d’un checkpoint demandent confirmation. Perdre le focus suspend le combat et l’audio ; une perte WebGL impose un rechargement explicite, sans effacer le dernier checkpoint.
+
+### Présentation et cohérence du combat
+
+Chaque secteur possède trois lumières d’ambiance, dans le budget total existant de quatre sources. Le slam du Gardien annonce sa zone réelle avant impact. Les silhouettes gardent leurs proportions au fil des dessins, les têtes suivent les pièces visibles, les ralentissements expirent proprement et la mêlée ennemie respecte les couvertures.
+
+L’écran-titre utilise une illustration originale générée avec OpenAI Image Generation le 31 août 2026. Cette image d’ambiance **n’est pas une capture du gameplay** ; sa [provenance et son prompt](docs/ASSET_PROVENANCE.md) sont conservés. Le monde jouable reste procédural.
 
 ### PWA autonome
 
-Le manifeste et le service worker mettent en cache le cœur statique du jeu. La suite Chrome vérifie l’installation du cache, le redémarrage hors ligne et la réponse contrôlée aux ressources absentes.
+Le manifeste et le service worker mettent en cache le cœur statique du jeu, illustration comprise. La build dérive le nom du cache d’une empreinte SHA-256 du contenu : modifier un script ou un asset crée une nouvelle révision. Un onglet conserve un ensemble cohérent de fichiers ; pour actualiser une installation, fermez tous les onglets du jeu puis rouvrez-le en ligne. La suite Chrome vérifie le cache, le redémarrage hors ligne et les ressources absentes.
 
 ## Arsenal et bestiaire consolidés depuis la 1.1
 
@@ -139,7 +151,9 @@ La progression est enregistrée automatiquement dans le stockage local du naviga
 nexus-of-torment-save-v1
 ```
 
-La sauvegarde comprend les réglages, fragments, améliorations persistantes, entrées du bestiaire, records de carrière et checkpoint de tentative active. La clé historique reste compatible ; les données de reprise sont validées et bornées avant restauration.
+La sauvegarde comprend les réglages, fragments, améliorations persistantes, entrées du bestiaire, records de carrière et checkpoint de tentative active. La clé historique reste compatible ; les données sont validées et bornées avant restauration. La reprise revient au dernier checkpoint inter-vague, pas à la dernière seconde jouée.
+
+Dans les réglages, **Exporter** prépare un fichier JSON de secours. **Importer**, réservé au menu et limité à 256 Ko, exige confirmation et ne remplace le dossier qu’après une écriture réussie. Un import invalide ou un achat non enregistré conserve la progression précédente. Une alerte signale un stockage indisponible ou des données réparées ; dans ce cas, exportez une copie avant de fermer. Une sauvegarde corrompue conserve aussi une copie de récupération locale lorsque le stockage le permet. Il n’existe pas de synchronisation cloud.
 
 ## Architecture
 
@@ -149,6 +163,7 @@ Nexus-of-Torment/
 ├── styles.css                 Direction UI/UX responsive
 ├── manifest.webmanifest       Métadonnées d’installation PWA
 ├── sw.js                      Cache du cœur statique et fallback hors ligne
+├── assets/                    Illustration originale incluse dans le cache
 ├── server.mjs                 Serveur local sans dépendance
 ├── src/
 │   ├── core/
@@ -166,9 +181,11 @@ Nexus-of-Torment/
 │   ├── check.mjs              Validation syntaxique
 │   ├── audit.mjs              Audit des ressources et inventaires
 │   ├── runtime-smoke.mjs      Tests déterministes des mécaniques
+│   ├── *-contract-smoke.mjs   Contrats combat, rendu, UI et résilience
 │   ├── http-smoke.mjs         Tests du serveur local et de sa sécurité
 │   ├── browser-qa.mjs         Parcours Chrome desktop/mobile/hors-ligne
-│   └── build.mjs              Production statique dans dist
+│   ├── build.mjs              Production statique et révision SHA-256 dans dist
+│   └── build-smoke.mjs        Deux builds identiques, cache et assets
 ├── docs/                      GDD, documentation, Codex, QA et roadmap
 └── screenshots/               Captures des builds vérifiées
 ```
@@ -189,11 +206,17 @@ Nexus-of-Torment/
 
 **Le son ne démarre pas** : une interaction utilisateur est imposée par les navigateurs ; cliquez sur « Entrer dans le Nexus ».
 
+**« Signal graphique interrompu »** : le jeu a suspendu simulation et rendu. Utilisez « Recharger le jeu » ; le dernier checkpoint enregistré reste disponible, mais le combat en cours n’est pas sauvegardé à la seconde.
+
+**« Sauvegarde non confirmée »** : exportez le dossier depuis les réglages avant de fermer. Le stockage local peut être bloqué ou saturé.
+
 **Performances faibles** : choisissez le rendu « Performance », activez les flashs réduits et désactivez le gore procédural.
 
 **Le double-clic sur le HTML est refusé par une politique d’entreprise** : lancez `start-game.bat` avec Node.js afin de servir le jeu sur `127.0.0.1`.
 
 **Le mode hors ligne n’est pas encore disponible** : ouvrez une première fois la version servie avec une connexion active afin que le service worker termine la mise en cache.
+
+L’installation PWA nécessite HTTPS ou le serveur local ; l’ouverture directe en `file://` ne bénéficie pas du service worker.
 
 ## Périmètre
 
@@ -201,7 +224,7 @@ Cette édition est un **survival-horror WebGL 2 autonome** pour navigateur deskt
 
 ## Identité et droits
 
-Le jeu est une œuvre originale d’horreur industrielle, charnelle et rituelle. Il ne reprend aucun personnage, nom, monstre, dialogue, musique ou asset d’une licence existante. Le code est distribué sous licence MIT ; voir `LICENSE`.
+Le jeu est une œuvre originale d’horreur industrielle, charnelle et rituelle. Il ne reprend aucun personnage, nom, monstre, dialogue, musique ou asset d’une licence existante. L’illustration de menu est créditée OpenAI Image Generation ; voir [la provenance des visuels](docs/ASSET_PROVENANCE.md). Le code est distribué sous licence MIT ; voir `LICENSE`.
 
 ## Avertissement de contenu
 

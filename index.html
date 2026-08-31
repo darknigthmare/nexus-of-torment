@@ -53,6 +53,7 @@
               <label><span>Niveau de brèche</span><select id="difficulty"><option value="containment">Confinement local</option><option value="unstable" selected>Brèche instable</option><option value="red">Liturgie rouge</option><option value="nexus">Nexus ouvert</option></select></label>
             </div>
 
+            <p id="loadout-summary" class="loadout-summary"></p>
             <button id="start-button" class="primary-button huge"><span>ENTRER DANS LE NEXUS</span><small>Clavier-souris ou commandes tactiles</small></button>
             <button id="continue-button" class="secondary-button continue-button hidden">REPRENDRE LE DERNIER PROTOCOLE</button>
           </div>
@@ -65,7 +66,8 @@
               <li><b>Arsenal rituel</b><span>Six armes, mêlée, grenade, capacités et pièges.</span></li>
               <li><b>Progression roguelite</b><span>Greffes de run, fragments et reprise sécurisée.</span></li>
             </ul>
-            <div class="menu-actions"><button id="codex-button" class="secondary-button">CODEX</button><button id="settings-button" class="secondary-button">RÉGLAGES</button><button id="credits-button" class="secondary-button">CRÉDITS</button></div>
+            <div class="menu-actions"><button id="briefing-button" class="secondary-button">BRIEFING</button><button id="codex-button" class="secondary-button">CODEX & GREFFES</button><button id="settings-button" class="secondary-button">RÉGLAGES</button><button id="credits-button" class="secondary-button">CRÉDITS</button></div>
+            <p class="content-notice">Horreur corporelle stylisée, sons oppressants et flashs. Réduction des effets disponible dans les réglages.</p>
           </aside>
         </div>
 
@@ -79,6 +81,7 @@
         <div class="wave-line"><span>VAGUE</span><strong id="wave-number">1</strong><em id="wave-modifier">STANDARD</em></div>
         <div id="objective" class="objective">Éliminez les entités restantes</div>
         <div class="enemy-counter"><span id="enemy-count">0</span> signatures hostiles</div>
+        <div id="navigation-hint" class="navigation-hint hidden"></div>
       </div>
       <div class="hud-top-center"><div id="boss-wrap" class="boss-wrap hidden"><div class="boss-name" id="boss-name">GARDIEN DU SEUIL</div><div class="bar boss-bar"><i id="boss-bar-fill"></i></div></div></div>
       <div class="hud-top-right"><div class="essence-block"><span>ESSENCE</span><strong id="essence-value">0</strong></div><div class="score-block"><span>SCORE</span><strong id="score-value">000000</strong></div><div id="streak" class="streak hidden">SÉRIE ×<strong>2</strong></div></div>
@@ -96,9 +99,11 @@
       <div id="announcement" class="announcement hidden" role="status" aria-live="polite" aria-atomic="true"><span id="announcement-kicker"></span><strong id="announcement-title"></strong><small id="announcement-subtitle"></small></div>
       <div id="toast-stack" class="toast-stack" role="log" aria-live="polite" aria-relevant="additions"></div>
       <div id="subtitle" class="subtitle hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+      <p id="field-guide" class="field-guide hidden"></p>
     </section>
 
     <div id="touch-controls" class="touch-controls hidden" aria-label="Commandes tactiles">
+      <button id="touch-next-wave" type="button" class="touch-button touch-next-wave hidden">LANCER L’OFFICE</button>
       <div id="touch-look" class="touch-look" aria-label="Zone tactile pour regarder"></div>
       <div id="touch-move" class="touch-stick" aria-label="Stick tactile de déplacement"><span id="touch-move-knob" class="touch-stick-knob"></span><small>DÉPLACEMENT</small></div>
       <div class="touch-actions touch-actions-primary"><button type="button" class="touch-button touch-hold" data-key="ShiftLeft" aria-label="Sprinter">COURSE</button><button id="touch-aim" type="button" class="touch-button touch-hold" data-mouse="2" aria-label="Viser">VISÉE</button><button id="touch-fire" type="button" class="touch-button touch-fire touch-hold" data-mouse="0" aria-label="Tirer">FEU</button></div>
@@ -109,9 +114,23 @@
 
     <section id="pointer-lock-screen" class="screen overlay-screen pointer-lock-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pointer-lock-title"><div class="panel compact pointer-lock-panel"><div class="eyebrow">CONTRÔLE OPÉRATEUR INTERROMPU</div><h2 id="pointer-lock-title">Reprendre le contrôle</h2><p>Le combat est suspendu. Activez la zone de jeu pour reverrouiller le pointeur.</p><button id="pointer-lock-button" class="primary-button">REPRENDRE LE COMBAT</button></div></section>
 
-    <section id="upgrade-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="upgrade-title"><div class="upgrade-shell"><div class="eyebrow">INTERMISSION // GREFFE AUTORISÉE</div><h2 id="upgrade-title">Choisissez une altération</h2><p>Le Nexus se refermera dans <b id="upgrade-timer">24</b> secondes.</p><div id="upgrade-cards" class="upgrade-cards"></div></div></section>
+    <section id="upgrade-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="upgrade-title"><div class="upgrade-shell"><div class="eyebrow">INTERMISSION // GREFFE AUTORISÉE</div><h2 id="upgrade-title">Choisissez une altération</h2><p id="upgrade-time-label">Prenez le temps de choisir. <b id="upgrade-timer"></b></p><div id="upgrade-cards" class="upgrade-cards"></div></div></section>
 
-    <section id="pause-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-panel"><div class="eyebrow">PROTOCOLE SUSPENDU</div><h2 id="pause-title">Pause</h2><button id="resume-button" class="primary-button">REPRENDRE</button><button id="pause-settings-button" class="secondary-button">RÉGLAGES</button><button id="restart-button" class="secondary-button">RECOMMENCER LA PARTIE</button><button id="quit-button" class="danger-button">ABANDONNER LE NŒUD</button></div></section>
+    <section id="pause-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-panel"><div class="eyebrow">PROTOCOLE SUSPENDU</div><h2 id="pause-title">Pause</h2><button id="resume-button" class="primary-button">REPRENDRE</button><button id="pause-briefing" class="secondary-button">AIDE & OBJECTIFS</button><button id="pause-settings-button" class="secondary-button">RÉGLAGES & SAUVEGARDE</button><button id="restart-button" class="secondary-button">RECOMMENCER LA PARTIE</button><button id="quit-button" class="danger-button">ABANDONNER LE NŒUD</button></div></section>
+
+    <section id="briefing-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="briefing-title">
+      <div class="modal-shell briefing-shell"><header class="modal-header"><div><div class="eyebrow">MANUEL OPÉRATEUR // NŒUD 07</div><h2 id="briefing-title">Survivre à la liturgie</h2></div><button class="close-button" data-close="briefing-screen" aria-label="Fermer le briefing">×</button></header>
+        <div class="briefing-grid">
+          <article><h3>01 · Briser la horde</h3><p>Déplacez-vous avec ZQSD / WASD, visez à la souris et tirez au clic gauche. Le clic droit resserre la visée. <kbd>R</kbd> recharge, <kbd>V</kbd> repousse au corps-à-corps et <kbd>C</kbd> active votre doctrine.</p><p>Sur écran tactile : stick à gauche, glissement à droite pour regarder, boutons FEU et VISÉE. Le bouton ARME parcourt les armes possédées.</p></article>
+          <article><h3>02 · Lire l’office</h3><p><b>Purge :</b> éliminez toutes les signatures. <b>Maintien :</b> restez dans le sceau lumineux puis éliminez les survivants. <b>Chasse :</b> neutralisez les cibles marquées puis nettoyez la zone.</p><p>Les attaques lourdes annoncent leur zone. Brisez les lignes de tir avec les couverts ; visez les têtes et les flancs des créatures blindées.</p></article>
+          <article><h3>03 · Préparer la suite</h3><p>Récupérez l’Essence au sol. Près d’une station, <kbd>E</kbd> achète soins, munitions ou armes. Une greffe améliore chaque vague terminée ; les fragments du bilan achètent les améliorations permanentes du Codex.</p><p>Entre deux vagues : 20 secondes de préparation, ou Entrée / F pour continuer. Boss aux offices 5 et 10. Après le dernier boss, rejoignez puis tenez le sceau d’extraction.</p></article>
+        </div>
+        <p class="briefing-save">La reprise revient au dernier checkpoint inter-vague, pas à la dernière seconde jouée. Mort et abandon effacent ce checkpoint ; l’abandon ne verse aucun fragment. Exportez une copie de votre dossier dans les réglages.</p>
+        <button class="primary-button" data-close="briefing-screen">COMPRIS — RETOUR</button>
+      </div>
+    </section>
+    <section id="confirm-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><div class="panel compact"><div class="eyebrow">CONFIRMATION OPÉRATEUR</div><h2 id="confirm-title">Confirmer</h2><p id="confirm-detail"></p><div class="confirm-actions"><button id="confirm-cancel" class="secondary-button">ANNULER</button><button id="confirm-accept" class="danger-button">CONFIRMER</button></div></div></section>
+    <p id="save-status" class="save-status hidden" role="status" aria-live="polite"></p>
 
     <section id="gameover-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="gameover-title"><div class="gameover-shell"><div class="eyebrow">CONFINEMENT ROMPU</div><h2 id="gameover-title">LE NEXUS VOUS A RÉCLAMÉ</h2><div class="result-grid"><div><span>Vague atteinte</span><strong id="result-wave">0</strong></div><div><span>Entités abattues</span><strong id="result-kills">0</strong></div><div><span>Score final</span><strong id="result-score">0</strong></div><div><span>Fragments gagnés</span><strong id="result-shards">0</strong></div></div><div class="gameover-actions"><button id="gameover-restart" class="primary-button">NOUVELLE TENTATIVE</button><button id="gameover-menu" class="secondary-button">RETOUR AU DOSSIER</button></div></div></section>
 
@@ -134,9 +153,11 @@
       <label class="toggle-row"><span>Contraste renforcé de l’interface</span><input id="ui-contrast" type="checkbox"></label>
       <label class="toggle-row"><span>Contraste renforcé des ennemis</span><input id="enemy-contrast" type="checkbox"></label>
       <label class="toggle-row"><span>Sous-titres et alertes textuelles</span><input id="subtitles-enabled" type="checkbox" checked></label>
-    </div><button id="reset-settings" class="secondary-button">RÉTABLIR LES VALEURS</button></div></section>
+      <label class="toggle-row"><span>Aide contextuelle et guidage d’objectif</span><input id="guided-hints" type="checkbox" checked></label>
+      <label class="toggle-row"><span>Choix des greffes chronométré (24 s)</span><input id="timed-upgrades" type="checkbox"></label>
+    </div><button id="reset-settings" class="secondary-button">RÉTABLIR LES VALEURS</button><section class="save-tools" aria-labelledby="save-tools-title"><h3 id="save-tools-title">Copie de secours du dossier</h3><p id="save-tools-note">L’export contient la carrière, les réglages et le dernier checkpoint inter-vague. L’import remplace ce dossier et nécessite un retour au menu.</p><div class="confirm-actions"><button id="save-export" class="secondary-button">EXPORTER</button><button id="save-import" class="secondary-button">IMPORTER</button></div><input id="save-file" type="file" accept=".json,application/json" hidden><p id="save-transfer-status" role="status" aria-live="polite"></p></section></div></section>
 
-    <section id="credits-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="credits-title"><div class="modal-shell credits-shell"><header class="modal-header"><div><div class="eyebrow">PROJET ORIGINAL</div><h2 id="credits-title">Nexus of Torment</h2></div><button class="close-button" data-close="credits-screen" aria-label="Fermer les crédits">×</button></header><p>Survival-horror d’action original, conçu autour d’une horreur industrielle et d’une liturgie nerveuse.</p><div class="credit-lines"><span><b>Conception et code</b> Génération Codex / OpenAI</span><span><b>Moteur</b> WebGL2 autonome, sans dépendance externe</span><span><b>Modèles et effets</b> Géométrie et shaders procéduraux originaux</span><span><b>Audio</b> Synthèse Web Audio en temps réel</span></div><p class="fine-print">Ce projet n’utilise aucun personnage, nom, musique ou asset provenant d’une licence existante.</p></div></section>
+    <section id="credits-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="credits-title"><div class="modal-shell credits-shell"><header class="modal-header"><div><div class="eyebrow">PROJET ORIGINAL</div><h2 id="credits-title">Nexus of Torment</h2></div><button class="close-button" data-close="credits-screen" aria-label="Fermer les crédits">×</button></header><p>Survival-horror d’action original, conçu autour d’une horreur industrielle et d’une liturgie nerveuse.</p><div class="credit-lines"><span><b>Conception et code</b> Génération Codex / OpenAI</span><span><b>Moteur</b> WebGL2 autonome, sans dépendance externe</span><span><b>Modèles et effets</b> Géométrie et shaders procéduraux originaux</span><span><b>Illustration du dossier</b> Création originale OpenAI Image Generation</span><span><b>Audio</b> Synthèse Web Audio en temps réel</span></div><p class="fine-print">Ce projet n’utilise aucun personnage, nom, musique ou asset provenant d’une licence existante.</p></div></section>
   </main>
 
   <script src="src/core/math.js"></script>

@@ -18,6 +18,8 @@
       this.codexScreen = this.$('codex-screen');
       this.settingsScreen = this.$('settings-screen');
       this.creditsScreen = this.$('credits-screen');
+      this.briefingScreen = this.$('briefing-screen');
+      this.confirmScreen = this.$('confirm-screen');
       this.pointerLockScreen = this.$('pointer-lock-screen');
       this.touchControls = this.$('touch-controls');
       this.damageFlashEl = this.$('damage-flash');
@@ -45,12 +47,15 @@
       this.activeModal = null;
       this.lastFocused = null;
       this.inputPauseState = null;
+      this.pendingConfirmation = null;
       this._ensureSettingDefaults();
       this._populateSectors();
       this._bind();
       this.applySettingsToControls();
       this.refreshMetaCurrency();
       this.renderCodex('bestiary');
+      this._updateLoadoutSummary();
+      this._syncSaveStatus();
     }
 
     _ensureSettingDefaults() {
@@ -62,6 +67,8 @@
       if (typeof settings.uiContrast !== 'boolean') settings.uiContrast = false;
       if (typeof settings.enemyContrast !== 'boolean') settings.enemyContrast = false;
       if (typeof settings.subtitles !== 'boolean') settings.subtitles = true;
+      if (typeof settings.guidedHints !== 'boolean') settings.guidedHints = true;
+      if (typeof settings.timedUpgrades !== 'boolean') settings.timedUpgrades = false;
     }
 
     _populateSectors() {
@@ -94,7 +101,9 @@
         this.selectedDifficulty = this.$('difficulty').value;
         this.selectedMode = this.$('mode').value;
         this.selectedSector = this.$('sector').value;
-        this.game.startRun(this.selectedClass, this.selectedDifficulty, this.selectedMode, this.selectedSector);
+        const start = () => this.game.startRun(this.selectedClass, this.selectedDifficulty, this.selectedMode, this.selectedSector);
+        if (this.game.save.data.activeRun) this._confirmAction('Remplacer la tentative sauvegardée ?', 'Votre carrière est conservée, mais le checkpoint actuel sera effacé.', start);
+        else start();
       });
       this.$('continue-button').addEventListener('click', () => {
         this.game.audio.init();
@@ -123,11 +132,14 @@
           if (id === 'difficulty') this.selectedDifficulty = event.target.value;
           if (id === 'mode') this.selectedMode = event.target.value;
           if (id === 'sector') this.selectedSector = event.target.value;
+          this._updateLoadoutSummary();
           this.game.audio.ui('select');
         });
       }
 
       this.$('codex-button').addEventListener('click', () => this.openCodex());
+      this.$('briefing-button').addEventListener('click', () => this.openBriefing());
+      this.$('pause-briefing').addEventListener('click', () => this.openBriefing(true));
       this.$('settings-button').addEventListener('click', () => this.openSettings());
       this.$('credits-button').addEventListener('click', () => this.openModal(this.creditsScreen));
       document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => this.closeModal(this.$(button.dataset.close))));
@@ -135,14 +147,23 @@
 
       this.$('resume-button').addEventListener('click', () => this.game.resume());
       this.$('pause-settings-button').addEventListener('click', () => this.openSettings(true));
-      this.$('restart-button').addEventListener('click', () => this.game.restartRun());
-      this.$('quit-button').addEventListener('click', () => this.game.quitToMenu());
+      this.$('restart-button').addEventListener('click', () => this._confirmAction('Recommencer cette tentative ?', 'La progression de cette tentative et son checkpoint seront perdus. Aucun fragment ne sera versé.', () => this.game.restartRun()));
+      this.$('quit-button').addEventListener('click', () => this._confirmAction('Abandonner le Nœud ?', 'Le checkpoint de cette tentative sera effacé. La carrière déjà enregistrée reste intacte ; aucun fragment ne sera versé pour cet abandon.', () => this.game.quitToMenu()));
       this.$('gameover-restart').addEventListener('click', () => this.game.restartRun());
       this.$('gameover-menu').addEventListener('click', () => this.game.quitToMenu());
       this.$('victory-endless').addEventListener('click', () => this.game.continueEndless?.());
       this.$('victory-restart').addEventListener('click', () => this.game.restartRun());
       this.$('victory-menu').addEventListener('click', () => this.game.quitToMenu());
       this.$('touch-pause').addEventListener('click', () => this.game.pause());
+      this.$('touch-next-wave').addEventListener('click', () => {
+        if (this.game.state === 'playing' && this.game.intermissionActive && this.game.intermissionReadyDelay <= 0) this.game._startWaveFromIntermission();
+      });
+      this.$('confirm-cancel').addEventListener('click', () => this._finishConfirmation(false));
+      this.$('confirm-accept').addEventListener('click', () => this._finishConfirmation(true));
+      this.$('save-export').addEventListener('click', () => this._exportSave());
+      this.$('save-import').addEventListener('click', () => { if (this.game.state === 'menu') this.$('save-file').click(); });
+      this.$('save-file').addEventListener('change', event => this._readSaveFile(event.target));
+      document.addEventListener('nt-save-status', () => this._syncSaveStatus());
       this.$('pointer-lock-button').addEventListener('click', () => this._resumePointerControl());
 
       this._bindSettings();
@@ -154,8 +175,9 @@
         if (event.key === 'Escape' && this.activeModal) {
           event.preventDefault();
           this.closeModal(this.activeModal);
-        } else if (event.key === 'Tab' && this.activeModal) {
-          this._trapFocus(event, this.activeModal);
+        } else if (event.key === 'Tab') {
+          const modal = this.activeModal || [this.pauseScreen, this.upgradeScreen, this.victoryScreen, this.gameoverScreen, this.pointerLockScreen].find(screen => !screen.classList.contains('hidden'));
+          if (modal) this._trapFocus(event, modal);
         }
       });
       document.addEventListener('nt-pointer-lock-error', () => this._showPointerPrompt());
@@ -177,6 +199,98 @@
         card.tabIndex = selected ? 0 : -1;
       });
       this.game.audio.ui('select');
+      this._updateLoadoutSummary();
+    }
+
+    _updateLoadoutSummary() {
+      const doctrine = D.CLASSES[this.selectedClass], difficulty = D.DIFFICULTIES[this.selectedDifficulty];
+      const descriptions = { containment:'Pour découvrir les rites.', unstable:'Le défi de référence.', red:'Hordes renforcées, erreurs coûteuses.', nexus:'Épreuve extrême pour opérateurs aguerris.' };
+      this.$('loadout-summary').textContent = doctrine.name + ' · ' + doctrine.health + ' santé / ' + doctrine.armor + ' armure. ' + doctrine.passive + ' ' + (descriptions[difficulty?.id] || '');
+    }
+
+    _confirmAction(title, detail, action) {
+      if (this.pendingConfirmation) return;
+      this.pendingConfirmation = { action, returnModal:this.activeModal, returnFocus:this.lastFocused, focus:document.activeElement };
+      this.activeModal?.classList.add('hidden');
+      this.$('confirm-title').textContent = title;
+      this.$('confirm-detail').textContent = detail;
+      this.openModal(this.confirmScreen);
+    }
+
+    _finishConfirmation(accept) {
+      const pending = this.pendingConfirmation;
+      if (!pending) return;
+      this.pendingConfirmation = null;
+      this.confirmScreen.classList.add('hidden');
+      this.confirmScreen.setAttribute('aria-hidden', 'true');
+      this.activeModal = null;
+      this.mainMenu.removeAttribute('aria-hidden');
+      if (pending.returnModal) {
+        this.openModal(pending.returnModal, false);
+        this.lastFocused = pending.returnFocus;
+      }
+      pending.focus?.focus?.();
+      if (accept) pending.action();
+    }
+
+    _syncSaveStatus() {
+      const status = this.game.save.status;
+      const warning = status && (!status.available || status.dirty || status.recovered);
+      const element = this.$('save-status');
+      element.classList.toggle('hidden', !warning);
+      element.textContent = !warning ? '' : !status.available || status.dirty
+        ? 'SAUVEGARDE NON CONFIRMÉE — exportez une copie du dossier dans les réglages avant de fermer.'
+        : 'DOSSIER RÉPARÉ — certaines données invalides ont été récupérées ; une copie de secours est conservée sur cet appareil.';
+    }
+
+    _exportSave() {
+      try {
+        const url = URL.createObjectURL(new Blob([this.game.save.exportJSON()], { type:'application/json' }));
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'nexus-dossier-' + new Date().toISOString().slice(0, 10) + '.json';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        this.$('save-transfer-status').textContent = 'Export préparé. Conservez le fichier JSON hors du stockage du navigateur.';
+      } catch {
+        this.$('save-transfer-status').textContent = 'Export impossible. Votre dossier actuel n’a pas été remplacé.';
+      }
+    }
+
+    async _readSaveFile(input) {
+      const file = input.files?.[0];
+      input.value = '';
+      if (!file || this.game.state !== 'menu') return;
+      if (file.size > 256 * 1024) {
+        this.$('save-transfer-status').textContent = 'Fichier refusé : limite de 256 Ko.';
+        return;
+      }
+      let content;
+      try { content = await file.text(); } catch {
+        this.$('save-transfer-status').textContent = 'Lecture du fichier impossible.';
+        return;
+      }
+      if (this.game.state !== 'menu') return;
+      this._confirmAction('Importer ce dossier ?', 'Les réglages, la carrière et le checkpoint actuels seront remplacés. Exportez-les d’abord si vous souhaitez les conserver.', () => {
+        if (this.game.state !== 'menu') {
+          this.$('save-transfer-status').textContent = 'Import refusé : retournez au menu avant de remplacer le dossier.';
+          return;
+        }
+        const result = this.game.save.importJSON(content);
+        this.$('save-transfer-status').textContent = result.ok
+          ? 'Dossier importé et enregistré sur cet appareil.'
+          : 'Import refusé : ' + (result.error || 'données invalides ou stockage indisponible') + '. Le dossier actuel est conservé.';
+        if (!result.ok) return;
+        this.game.settings = { ...this.game.settings, ...this.game.save.data.settings };
+        this.game.applySettings();
+        this.applySettingsToControls();
+        this.refreshMetaCurrency();
+        this.refreshContinueButton();
+        this.renderCodex(this.currentCodexTab);
+        this._syncSaveStatus();
+      });
     }
 
     _bindTabs() {
@@ -232,7 +346,8 @@
       const toggles = [
         ['head-bob', 'headBob'], ['reduced-flashes', 'reducedFlashes'], ['reduced-motion', 'reducedMotion'],
         ['gore', 'gore'], ['invert-y', 'invertY'], ['ui-contrast', 'uiContrast'],
-        ['enemy-contrast', 'enemyContrast'], ['subtitles-enabled', 'subtitles']
+        ['enemy-contrast', 'enemyContrast'], ['subtitles-enabled', 'subtitles'],
+        ['guided-hints', 'guidedHints'], ['timed-upgrades', 'timedUpgrades']
       ];
       toggles.forEach(([id, key]) => this.$(id).addEventListener('change', event => {
         this.game.settings[key] = event.target.checked;
@@ -265,7 +380,7 @@
       this.$('hud-scale').value = String(s.hudScale);
       this.$('shake-intensity').value = s.shakeIntensity;
       this.$('shake-intensity-value').textContent = `${Math.round(s.shakeIntensity * 100)}%`;
-      for (const [id, key] of [['head-bob', 'headBob'], ['reduced-flashes', 'reducedFlashes'], ['reduced-motion', 'reducedMotion'], ['gore', 'gore'], ['invert-y', 'invertY'], ['ui-contrast', 'uiContrast'], ['enemy-contrast', 'enemyContrast'], ['subtitles-enabled', 'subtitles']]) {
+      for (const [id, key] of [['head-bob', 'headBob'], ['reduced-flashes', 'reducedFlashes'], ['reduced-motion', 'reducedMotion'], ['gore', 'gore'], ['invert-y', 'invertY'], ['ui-contrast', 'uiContrast'], ['enemy-contrast', 'enemyContrast'], ['subtitles-enabled', 'subtitles'], ['guided-hints', 'guidedHints'], ['timed-upgrades', 'timedUpgrades']]) {
         this.$(id).checked = Boolean(s[key]);
       }
       this._applyAccessibilityPreferences();
@@ -290,6 +405,10 @@
       this.mainMenu.classList.remove('hidden');
       this.hud.classList.add('hidden');
       this._hideGameplayScreens();
+      this.briefingScreen.classList.add('hidden');
+      this.confirmScreen.classList.add('hidden');
+      this.activeModal = null;
+      this.mainMenu.removeAttribute('aria-hidden');
       this._setTouchControls(false);
       this.refreshMetaCurrency();
       this.refreshContinueButton();
@@ -299,6 +418,10 @@
       this.mainMenu.classList.add('hidden');
       for (const screen of [this.codexScreen, this.settingsScreen, this.creditsScreen, this.pauseScreen, this.gameoverScreen, this.victoryScreen, this.upgradeScreen, this.pointerLockScreen]) screen?.classList.add('hidden');
       this.hud.classList.remove('hidden');
+      this.briefingScreen.classList.add('hidden');
+      this.confirmScreen.classList.add('hidden');
+      this.activeModal = null;
+      this.mainMenu.removeAttribute('aria-hidden');
       this._setTouchControls(true);
     }
 
@@ -340,7 +463,7 @@
       this.$('continue-button').classList.toggle('hidden', !this.game.save.data.activeRun);
     }
 
-    openModal(element) {
+    openModal(element, focus = true) {
       if (!element) return;
       this.lastFocused = document.activeElement;
       this.activeModal = element;
@@ -349,11 +472,12 @@
       this.mainMenu.setAttribute('aria-hidden', 'true');
       this.game.audio.init();
       this.game.audio.ui('select');
-      this._focusFirst(element);
+      if (focus) this._focusFirst(element);
     }
 
     closeModal(element) {
       if (!element) return;
+      if (element === this.confirmScreen) { this._finishConfirmation(false); return; }
       element.classList.add('hidden');
       element.setAttribute('aria-hidden', 'true');
       this.activeModal = null;
@@ -366,9 +490,14 @@
     openSettings(fromPause = false) {
       if (fromPause) this.pauseScreen.classList.add('hidden');
       this.applySettingsToControls();
+      this.$('save-import').disabled = this.game.state !== 'menu';
       this.openModal(this.settingsScreen);
     }
     openCodex() { this.renderCodex(this.currentCodexTab); this.openModal(this.codexScreen); }
+    openBriefing(fromPause = false) {
+      if (fromPause) this.pauseScreen.classList.add('hidden');
+      this.openModal(this.briefingScreen);
+    }
 
     _focusFirst(root) {
       requestAnimationFrame(() => root.querySelector('button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex="0"]')?.focus());
@@ -421,7 +550,7 @@
       if (this.announcementTimer <= 0) this.announcementEl.classList.add('hidden');
       this.subtitleTimer = Math.max(0, this.subtitleTimer - dt);
       if (this.subtitleTimer <= 0) this.$('subtitle').classList.add('hidden');
-      if (!this.upgradeScreen.classList.contains('hidden')) {
+      if (!this.upgradeScreen.classList.contains('hidden') && this.game.settings.timedUpgrades && !document.hidden) {
         this.upgradeTimer = Math.max(0, this.upgradeTimer - dt);
         this.upgradeTimerEl.textContent = Math.ceil(this.upgradeTimer);
         if (this.upgradeTimer <= 0 && this.upgradeCallback) this.selectUpgrade(0);
@@ -472,6 +601,37 @@
       streakEl.classList.toggle('hidden', streak <= 1);
       if (streak > 1) streakEl.querySelector('strong').textContent = streak;
       this.setInteraction(game.arena.stationPrompt(game.arena.nearestStation(p.position)));
+      this._updateGuidance();
+    }
+
+    _updateGuidance() {
+      const game = this.game, enabled = game.settings.guidedHints !== false;
+      let zone = game.extractionActive ? game.extractionZone : game.waveObjective;
+      if (zone?.type === 'hunt' && zone.phase === 'active') {
+        const marked = game.enemies.filter(enemy => enemy.alive && enemy.objectiveMarked);
+        const nearest = marked.reduce((best, enemy) => !best || enemy.position.distanceToXZ(game.player.position) < best.position.distanceToXZ(game.player.position) ? enemy : best, null);
+        zone = nearest ? { position:nearest.position, type:'hunt', phase:'active', radius:0 } : null;
+      }
+      const navigation = this.$('navigation-hint');
+      const showNavigation = enabled && zone?.position && zone.phase === 'active';
+      navigation.classList.toggle('hidden', !showNavigation);
+      if (showNavigation) {
+        const dx = zone.position.x - game.player.position.x, dz = zone.position.z - game.player.position.z;
+        const distance = Math.hypot(dx, dz), angle = Math.atan2(dx, -dz) - game.camera.yaw;
+        const bearing = Math.atan2(Math.sin(angle), Math.cos(angle));
+        const direction = distance <= (zone.radius || 0) ? 'DANS LE SCEAU' : Math.abs(bearing) < .35 ? 'EN FACE' : Math.abs(bearing) > 2.5 ? 'DERRIÈRE' : bearing > 0 ? 'À DROITE' : 'À GAUCHE';
+        navigation.textContent = (zone.type === 'hunt' ? 'CIBLE MARQUÉE' : 'SCEAU') + ' · ' + Math.ceil(distance) + ' M · ' + direction;
+      }
+      const guide = this.$('field-guide');
+      const initial = enabled && game.wave === 1 && game.runTime < 25 && !game.intermissionActive;
+      guide.classList.toggle('hidden', !initial);
+      if (initial) guide.textContent = game.input.touchMode
+        ? 'Stick gauche : bouger · Glissez à droite : regarder · FEU : tirer · R : recharger · C : capacité'
+        : 'ZQSD / WASD : bouger · Clic : tirer · R : recharger · C : capacité · E : station · Échap : aide';
+      const next = this.$('touch-next-wave');
+      next.classList.toggle('hidden', !game.intermissionActive || !game.input.touchMode);
+      next.disabled = game.intermissionReadyDelay > 0;
+      if (game.intermissionActive) next.textContent = 'LANCER L’OFFICE · ' + Math.ceil(game.intermissionTimer) + ' S';
     }
 
     _updateWeaponSlots() {
@@ -539,7 +699,8 @@
       this.upgradeOptions = options;
       this.upgradeCallback = callback;
       this.upgradeTimer = duration;
-      this.upgradeTimerEl.textContent = Math.ceil(duration);
+      this.$('upgrade-time-label').firstChild.textContent = this.game.settings.timedUpgrades ? 'Choix automatique dans ' : 'Aucune limite de lecture — choisissez votre greffe. ';
+      this.upgradeTimerEl.textContent = this.game.settings.timedUpgrades ? Math.ceil(duration) : '';
       this.upgradeCards.innerHTML = '';
       options.forEach((upgrade, index) => {
         const stack = this.game.player.upgradeStacks[upgrade.id] || 0;
@@ -590,7 +751,9 @@
     }
 
     buyMeta(id) {
-      const meta = D.META_UPGRADES[id], save = this.game.save.data, level = save.meta[id] || 0;
+      const meta = D.META_UPGRADES[id], save = this.game.save.data;
+      if (!meta) return;
+      const level = save.meta[id] || 0;
       if (level >= meta.max) return;
       const cost = meta.baseCost * (level + 1);
       if ((save.shards || 0) < cost) {
@@ -600,7 +763,14 @@
       }
       save.shards -= cost;
       save.meta[id] = level + 1;
-      this.game.save.save();
+      if (!this.game.save.save()) {
+        save.shards += cost;
+        save.meta[id] = level;
+        this._syncSaveStatus();
+        this.toast('GREFFE NON ENREGISTRÉE', 'Achat annulé : stockage indisponible. Exportez votre dossier.', 'error');
+        this.game.audio.ui('error');
+        return;
+      }
       this.refreshMetaCurrency();
       this.renderCodex('meta');
       this.game.audio.ui('confirm');

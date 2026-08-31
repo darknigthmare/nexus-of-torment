@@ -28,7 +28,10 @@ const requiredFiles = [
   'src/game/data.js', 'src/game/arena.js', 'src/game/entities.js',
   'src/game/weapons.js', 'src/game/ui.js', 'src/game/game.js', 'src/main.js',
   'tools/check.mjs', 'tools/audit.mjs', 'tools/runtime-smoke.mjs', 'tools/http-smoke.mjs', 'tools/build.mjs', 'tools/browser-qa.mjs',
-  '.github/workflows/ci.yml',
+  '.github/workflows/ci.yml', 'assets/nexus-keyart-v1.png', 'docs/ASSET_PROVENANCE.md',
+  'tools/combat-contract-smoke.mjs', 'tools/render-contract-smoke.mjs', 'tools/presentation-contract-smoke.mjs',
+  'tools/resilience-contract-smoke.mjs', 'tools/ui-contract-smoke.mjs',
+  'tools/browser-product-audit.mjs', 'tools/build-smoke.mjs', 'tools/production-smoke.mjs',
   'docs/GDD.md', 'docs/TECHNICAL.md', 'docs/CODEX.md', 'docs/QA_REPORT.md', 'docs/ROADMAP.md'
 ];
 
@@ -90,6 +93,9 @@ if (releaseAudit) {
       Array.isArray(browserEvidence.runtimeErrors) && browserEvidence.runtimeErrors.length === 0,
       'Preuve locale : console et runtime sans erreur'
     );
+    const builtWorker = fs.existsSync(path.join(root, 'dist/sw.js')) ? fs.readFileSync(path.join(root, 'dist/sw.js'), 'utf8') : '';
+    const builtRevision = builtWorker.match(/const CACHE_VERSION = '([^']+)'/)?.[1];
+    expect(Boolean(builtRevision) && browserEvidence.buildRevision === builtRevision, 'Preuve locale : empreinte de build identique au navigateur');
     const requiredBrowserChecks = [
       'Boot WebGL2 sans fallback',
       'Accessibilité appliquée et focus contenu',
@@ -112,6 +118,15 @@ if (releaseAudit) {
       'FEU tactile pilote le système d’arme',
       'Stick tactile transmet le déplacement',
       'Pause tactile opérationnelle',
+      'Export puis import exact du dossier',
+      'Abandon annulable sans perdre la tentative',
+      'Greffes sans délai de lecture par défaut',
+      'Intermission lançable par bouton tactile',
+      'Commandes tactiles contenues en paysage',
+      'Dossier endommagé réparé avec copie et avertissement',
+      'Démarrage jouable sans périphérique audio',
+      'Perte WebGL réelle suspend la simulation',
+      'Rechargement après perte graphique conserve la reprise',
       'Console et runtime sans erreur'
     ];
     const missingBrowserChecks = requiredBrowserChecks.filter(name =>
@@ -177,6 +192,7 @@ expect(Array.isArray(manifest.icons) && manifest.icons.every((icon) => fs.exists
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 expect(indexSource.includes('manifest.webmanifest') && fs.readFileSync(path.join(root, 'src/main.js'), 'utf8').includes('serviceWorker.register'), 'PWA enregistrée');
 expect(['index.html', 'styles.css', 'src/game/game.js', 'version.json'].every((entry) => serviceWorkerSource.includes(entry)), 'Cache hors-ligne couvre le cœur du jeu');
+expect(serviceWorkerSource.includes('assets/nexus-keyart-v1.png') && fs.readFileSync(path.join(root, 'tools/build.mjs'), 'utf8').includes("'assets'"), 'Illustration originale incluse dans le build et le cache');
 
 const normalizedIndex = indexSource.toLocaleLowerCase('fr');
 expect(

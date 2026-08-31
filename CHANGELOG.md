@@ -17,6 +17,9 @@
 - Correction des grenades afin que leur explosion respecte les collisions et l’atténuation par les couvertures.
 - Protection des apparitions afin que les ennemis encore invulnérables ne puissent pas infliger de dégâts.
 - Validation des quatre difficultés et des boss dédiés aux vagues 5 et 10.
+- Alignement des raycasts de tête sur les pièces visibles et correction des volumes corporels de l’Archidiacre qui masquaient sa tête.
+- Suppression de la dérive cumulative de respiration des silhouettes ; expiration effective des ralentissements et respect des obstacles par la mêlée ennemie.
+- Éclairage propre à chaque secteur sans dépasser quatre sources ; avertissement spatial, textuel et cercle de rayon réel avant le slam du Gardien.
 
 ### UX, accessibilité et PWA
 
@@ -25,13 +28,23 @@
 - Ajout des réglages d’échelle du HUD, d’intensité des secousses, de mouvement réduit, de contraste UI, de contraste ennemi et de sous-titres.
 - Ajout du manifeste installable, de l’icône originale, du service worker et du cache autonome avec fallback hors ligne.
 - Ajout de la build statique `dist` et du pipeline CI/release.
+- Ajout d’un briefing accessible au menu et en pause, d’un guidage d’objectif désactivable et du lancement tactile de l’office suivant.
+- Greffes sans chrono par défaut ; délai de 24 secondes optionnel et suspendu lorsque l’onglet est caché.
+- Confirmations avant abandon, redémarrage ou remplacement d’un checkpoint, avec annulation et restitution du focus, y compris depuis les réglages.
+- Export JSON et import confirmé réservé au menu, limité à 256 Ko ; validation des données, signalement des erreurs de stockage et copie de récupération. Import et achat persistants n’annoncent plus un succès lorsque l’écriture échoue.
+- Contraste appliqué aux matériaux ennemis ; suppression du flash blanc plein corps et atténuation du flash d’arme avec l’option dédiée.
+- Suspension des entrées et de l’audio lors d’une perte de focus ; tolérance aux refus Web Audio et compression du bus final. Perte WebGL : gel du rendu et de la simulation, rechargement explicite sans suppression du checkpoint.
+- Illustration de menu originale OpenAI Image Generation, accompagnée de sa provenance ; image d’ambiance distincte des captures de gameplay.
+- Révision du cache dérivée du SHA-256 des fichiers triés, assets et SW source compris ; textes de build normalisés en LF, source SW inchangée. Le shell installé ne mélange pas les modules de révisions différentes.
 
 ### Qualité vérifiée
 
-- Audit statique : **77/77** ; audit de release après preuve navigateur : **83/83**.
+- Audit statique et audit de release distincts ; le second contrôle la preuve navigateur courante.
 - Runtime smoke : **72/72**, dont les 34 contrats précédents préservés.
 - HTTP smoke : **5/5**.
-- QA Google Chrome réel : **35/35**, couvrant desktop 1280 × 720, mobile tactile émulé 390 × 844, campagne, survie infinie, trois secteurs, quatre difficultés, boss 5/10, checkpoint/reprise, mort, extraction/victoire et PWA hors ligne. Les fixtures et limites de cette couverture sont détaillées dans `docs/QA_REPORT.md`.
+- Suites de contrats supplémentaires : combat, stabilité du rendu, présentation, sauvegarde/audio, UI et déterminisme de deux builds successifs.
+- Parcours Google Chrome desktop, tactile émulé, campagne, survie infinie, secteurs, difficultés, boss, sauvegarde, menus et PWA. Le décompte et les mesures actifs sont dans [la preuve navigateur](docs/QA_BROWSER_1.2.json), avec les fixtures et limites dans [le rapport QA](docs/QA_REPORT.md).
+- Ces contrôles ne remplacent pas une campagne humaine sans assistance, des essais sur téléphone physique/Safari ou une certification commerciale.
 - Porte de performance locale : rendu matériel 1280 × 720 natif, médiane ≥30 FPS et minimum ≥24 FPS ; mesures exactes conservées dans `docs/QA_BROWSER_1.2.json`.
 - Captures de preuve : `docs/screenshots/v1.2-desktop-menu.png`, `docs/screenshots/v1.2-desktop-gameplay.png` et `docs/screenshots/v1.2-mobile-gameplay.png`.
 

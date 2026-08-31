@@ -238,6 +238,11 @@
       bounds:{ minX:-24.7,maxX:24.7,minZ:-24.7,maxZ:24.7 },
       floor:{ width:52,depth:52,grooveStep:5,sigilStep:10 },
       gate:{ position:[0,3.8,-7],outer:10.2,middle:7.9,inner:5.8,disc:7.8 },
+      lighting:[
+        { position:[0,3.2,-8],color:0xd92f42,power:7 },
+        { position:[-11,2.2,5],color:0x4ac1c8,power:4.2 },
+        { position:[12,2,-9],color:0xd08742,power:3.5 }
+      ],
       geometry:[
         ['cylinder12','wallDark',0,.3,-7,10,.6,10,true,'dais'],
         ['cylinder12','rust',0,.66,-7,7.7,.16,7.7,false,'dais-ring'],
@@ -267,6 +272,11 @@
       bounds:{ minX:-19.7,maxX:19.7,minZ:-30.7,maxZ:30.7 },
       floor:{ width:42,depth:64,grooveStep:5,sigilStep:10 },
       gate:{ position:[0,3.8,-25],outer:11.2,middle:8.7,inner:6.2,disc:8.6 },
+      lighting:[
+        { position:[0,3.5,-25],color:0xe4a554,power:7.2 },
+        { position:[-14,2.7,3],color:0xd44051,power:4 },
+        { position:[14,2.7,13],color:0x4ac1c8,power:3.8 }
+      ],
       geometry:[
         ['cube','floorAlt',0,.12,-25,17,.24,10,false,'chancel'],
         ['cube','ritual',0,.27,-25,15,.04,.18,false,'axial-sigil'],
@@ -301,6 +311,11 @@
       bounds:{ minX:-26.7,maxX:26.7,minZ:-26.7,maxZ:26.7 },
       floor:{ width:56,depth:56,grooveStep:7,sigilStep:14 },
       gate:{ position:[0,3.8,-21],outer:9.6,middle:7.4,inner:5.3,disc:7.2 },
+      lighting:[
+        { position:[0,3.4,-21],color:0x68d9df,power:7 },
+        { position:[-17,2.4,0],color:0xa163ae,power:4.5 },
+        { position:[16,2.1,12],color:0xd49e63,power:3.8 }
+      ],
       geometry:[
         ['cylinder12','floorAlt',0,.16,0,15,.32,15,false,'ossuary-ring'],
         ['torus','cyan',0,.34,0,15.2,15.2,15.2,false,'ossuary-ring'],

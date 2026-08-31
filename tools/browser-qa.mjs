@@ -4,12 +4,18 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { auditMenu, auditPause, auditMobileMenu, auditMobileCombat, auditRecovery } from './browser-product-audit.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let url = process.argv[2] || process.env.NEXUS_QA_URL || null;
 const explicitUrl = Boolean(url);
 const chrome = process.env.NEXUS_CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const headless = process.env.NEXUS_QA_HEADLESS !== 'false';
+const softwareRenderer = process.env.NEXUS_QA_SOFTWARE_RENDERER === '1';
+const launchArgs = ['--enable-webgl','--enable-gpu','--ignore-gpu-blocklist','--disable-dev-shm-usage'];
+// SwANGLE explicite pour les bots sans GPU ; le chemin matériel par défaut reste intact.
+// https://chromium.googlesource.com/chromium/src/+/main/docs/gpu/swiftshader.md
+if (softwareRenderer) launchArgs.push('--use-gl=angle', '--use-angle=swiftshader');
 const minFps = Math.max(1, Number.parseFloat(process.env.NEXUS_MIN_FPS || '30') || 30);
 const minSampleFps = Math.max(1, Number.parseFloat(process.env.NEXUS_MIN_SAMPLE_FPS || '24') || 24);
 const requestedRenderScale = Number.parseFloat(process.env.NEXUS_QA_RENDER_SCALE || '');
@@ -26,19 +32,27 @@ fs.mkdirSync(shots, { recursive:true });
 const report = {
   schemaVersion:1, product:'NEXUS OF TORMENT — Liturgie nerveuse', version:'1.2.0',
   target:explicitUrl ? 'production-url' : 'local-build',
-  executedAt:new Date().toISOString(), url, browser:{ engine:'Chromium', executable:chrome, headless },
+  executedAt:new Date().toISOString(), url,
+  browser:{ engine:'Chromium', executable:chrome, headless, softwareRenderer, launchArgs },
   checks:[], failures:[], evidence:{
     desktopMenu:evidencePath('v1.2-desktop-menu.png'),
     desktopGameplay:evidencePath('v1.2-desktop-gameplay.png'),
     mobileGameplay:evidencePath('v1.2-mobile-gameplay.png')
   }
 };
+report.auditEvidence = Object.fromEntries(['briefing','save-tools','mobile-menu','mobile-grafts','mobile-landscape'].map(name => [name, evidencePath('v1.2-' + name + '.png')]));
 function verify(name, value, details) {
   report.checks.push({ name, passed:Boolean(value), ...(details === undefined ? {} : { details }) });
   if (!value) { report.failures.push(name); throw new Error(name); }
 }
 async function ready(page) {
-  await page.waitForFunction(() => window.nexusGame?.state === 'menu', null, { timeout:15000 });
+  await page.waitForFunction(() => {
+    const fallback = document.querySelector('#webgl-fallback');
+    return window.nexusGame?.state === 'menu' || (fallback && !fallback.classList.contains('hidden'));
+  }, null, { timeout:15000 });
+  const bootError = await page.evaluate(() => window.nexusGame?.state === 'menu'
+    ? null : document.querySelector('#webgl-fallback')?.textContent?.trim());
+  if (bootError) throw new Error('Démarrage Nexus impossible : ' + bootError);
 }
 async function snapshot(page) {
   return page.evaluate(() => {
@@ -73,6 +87,74 @@ async function fps(page, count = 75) {
 let browser;
 let offline = false;
 const errors = [];
+const diagnosticEvents = [];
+const diagnosticPages = [];
+function rememberDiagnostic(event) {
+  diagnosticEvents.push({ at:new Date().toISOString(), ...event });
+  if (diagnosticEvents.length > 150) diagnosticEvents.shift();
+}
+function observePage(page, label, expectedConsoleMessages = []) {
+  diagnosticPages.push({ page, label });
+  page.on('pageerror', error => {
+    errors.push({ type:label + '-pageerror', message:error.message });
+    rememberDiagnostic({ page:label, type:'pageerror', message:error.message, stack:error.stack });
+  });
+  page.on('console', message => {
+    rememberDiagnostic({ page:label, type:'console', level:message.type(), message:message.text(), location:message.location() });
+    if (message.type() === 'error') errors.push({ type:label + '-console', message:message.text(), expectedOffline:offline, expectedRecovery:expectedConsoleMessages.some(text => message.text().includes(text)) });
+  });
+  page.on('requestfailed', request => {
+    rememberDiagnostic({ page:label, type:'requestfailed', url:request.url(), failure:request.failure() });
+    if (!offline) errors.push({ type:label + '-request', message:request.url() });
+  });
+  page.on('crash', () => {
+    errors.push({ type:label + '-crash', message:'Processus renderer interrompu' });
+    rememberDiagnostic({ page:label, type:'crash' });
+  });
+}
+function unexpectedErrors() {
+  return errors.filter(error =>
+    !error.expectedRecovery &&
+    !(error.expectedOffline && /status of 503/i.test(error.message))
+  );
+}
+async function collectFailureDiagnostics() {
+  const pages = [];
+  for (const { page, label } of diagnosticPages) {
+    if (page.isClosed()) { pages.push({ label, closed:true }); continue; }
+    let timeout;
+    const diagnostic = { label, url:page.url() };
+    try {
+      diagnostic.init = await Promise.race([
+        page.evaluate(() => {
+          const canvas = document.querySelector('#game-canvas');
+          const fallback = document.querySelector('#webgl-fallback');
+          const gl = canvas?.getContext('webgl2');
+          const rendererInfo = gl?.getExtension('WEBGL_debug_renderer_info');
+          return {
+            readyState:document.readyState, title:document.title,
+            gameConstructed:Boolean(window.nexusGame), gameState:window.nexusGame?.state || null,
+            modules:Object.keys(window.NT || {}), canvasPresent:Boolean(canvas),
+            fallbackVisible:Boolean(fallback && !fallback.classList.contains('hidden')),
+            fallbackText:fallback?.textContent?.trim() || null,
+            webgl2:Boolean(gl), contextLost:gl?.isContextLost() ?? null,
+            gpuRenderer:rendererInfo ? gl.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL) : null,
+            scripts:Array.from(document.scripts, script => script.src)
+          };
+        }),
+        new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Diagnostic de page interrompu après 3 secondes')), 3000); })
+      ]);
+    } catch (error) { diagnostic.error = error.message; }
+    finally { clearTimeout(timeout); }
+    try {
+      const filename = 'failure-' + label + '.png';
+      await page.screenshot({ path:path.join(shots, filename), timeout:3000 });
+      diagnostic.screenshot = evidencePath(filename);
+    } catch (error) { diagnostic.screenshotError = error.message; }
+    pages.push(diagnostic);
+  }
+  return { lastCheck:report.checks.at(-1) || null, pages, events:diagnosticEvents, capturedErrors:errors };
+}
 let qaServer;
 async function startBuiltServer(port = 0) {
   const dist = path.join(root, 'dist');
@@ -88,6 +170,10 @@ async function startBuiltServer(port = 0) {
     try { pathname = decodeURIComponent(new URL(request.url || '/', 'http://localhost').pathname); }
     catch { response.writeHead(400).end('Bad request'); return; }
     const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+    // Même redirection que cleanUrls sur Vercel ; elle fait partie du contrat PWA.
+    if (relative === 'index.html' && pathname !== '/') {
+      response.writeHead(308, { Location:'/' }).end(); return;
+    }
     const file = path.resolve(dist, relative);
     if (file !== dist && !file.startsWith(dist + path.sep)) {
       response.writeHead(403).end('Forbidden'); return;
@@ -114,21 +200,18 @@ try {
     const address = qaServer.address();
     url = 'http://127.0.0.1:' + address.port + '/';
     report.url = url;
+    report.buildRevision = fs.readFileSync(path.join(root, 'dist/sw.js'), 'utf8').match(/const CACHE_VERSION = '([^']+)'/)?.[1];
   }
   browser = await chromium.launch({
     executablePath:chrome, headless,
-    args:['--enable-webgl','--enable-gpu','--ignore-gpu-blocklist','--disable-dev-shm-usage']
+    args:launchArgs
   });
   const desktop = await browser.newContext({
     viewport:{ width:1280, height:720 }, colorScheme:'dark',
     reducedMotion:'no-preference', serviceWorkers:'allow'
   });
   const page = await desktop.newPage();
-  page.on('pageerror', e => errors.push({ type:'pageerror', message:e.message }));
-  page.on('console', m => {
-    if (m.type() === 'error') errors.push({ type:'console', message:m.text(), expectedOffline:offline });
-  });
-  page.on('requestfailed', r => { if (!offline) errors.push({ type:'request', message:r.url() }); });
+  observePage(page, 'desktop');
   const response = await page.goto(url, { waitUntil:'networkidle', timeout:20000 });
   verify('Chargement HTTP desktop', response?.ok(), response?.status());
   await ready(page);
@@ -145,6 +228,7 @@ try {
     menu.classes === 3 && menu.difficulties === 4 && menu.modes === 2 && menu.sectors === 3, menu);
   verify('Document français titré', menu.lang === 'fr' && /NEXUS OF TORMENT/i.test(menu.title), menu);
   await page.screenshot({ path:path.join(shots, 'v1.2-desktop-menu.png') });
+  await auditMenu(page, verify, shots);
 
   await page.locator('#settings-button').click();
   await page.locator('#reduced-motion').check();
@@ -202,6 +286,7 @@ try {
     renderScale:combat.renderScale, buffer:combat.buffer
   };
   await page.screenshot({ path:path.join(shots, 'v1.2-desktop-gameplay.png') });
+  await auditPause(page, verify);
 
   const difficulties = await page.evaluate(() => {
     const g = window.nexusGame;
@@ -356,8 +441,7 @@ try {
     isMobile:true, hasTouch:true, colorScheme:'dark', serviceWorkers:'allow'
   });
   const mobilePage = await mobile.newPage();
-  mobilePage.on('pageerror', e => errors.push({ type:'mobile-pageerror', message:e.message }));
-  mobilePage.on('console', m => { if (m.type() === 'error') errors.push({ type:'mobile-console', message:m.text() }); });
+  observePage(mobilePage, 'mobile');
   const mobileResponse = await mobilePage.goto(url, { waitUntil:'networkidle', timeout:20000 });
   verify('Chargement HTTP mobile', mobileResponse?.ok(), mobileResponse?.status());
   await ready(mobilePage);
@@ -369,6 +453,7 @@ try {
   }));
   verify('Menu mobile sans débordement', responsive.touch && responsive.scroll <= responsive.width + 1 &&
     responsive.sectors === 3, responsive);
+  await auditMobileMenu(mobilePage, verify, shots);
   await mobilePage.locator('#difficulty').selectOption('nexus');
   await mobilePage.locator('#mode').selectOption('endless');
   await mobilePage.locator('#sector').selectOption('ossuary');
@@ -408,18 +493,25 @@ try {
   await mobilePage.locator('#touch-pause').tap();
   verify('Pause tactile opérationnelle',
     await mobilePage.locator('#pause-screen').isVisible() && (await snapshot(mobilePage)).state === 'paused');
+  await auditMobileCombat(mobilePage, verify, shots);
   await mobile.close();
 
-  const realErrors = errors.filter(x =>
-    !/AudioContext|pointer.?lock/i.test(x.message) &&
-    !(x.expectedOffline && /status of 503/i.test(x.message))
-  );
+  const recoveryContext = await browser.newContext({ viewport:{ width:1280, height:720 }, serviceWorkers:'block' });
+  const recoveryPage = await recoveryContext.newPage();
+  observePage(recoveryPage, 'recovery', ['Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.']);
+  await auditRecovery(recoveryPage, verify, url);
+  await recoveryContext.close();
+
+  const realErrors = unexpectedErrors();
   verify('Console et runtime sans erreur', realErrors.length === 0, realErrors);
   report.runtimeErrors = realErrors;
+  report.expectedRecoverySignals = errors.filter(x => x.expectedRecovery);
   report.expectedOfflineSignals = errors.filter(x => x.expectedOffline && /status of 503/i.test(x.message));
   report.summary = { passed:report.checks.filter(x => x.passed).length, failed:0 };
 } catch (error) {
   report.error = error?.stack || String(error);
+  report.diagnostics = await collectFailureDiagnostics();
+  report.runtimeErrors = unexpectedErrors();
   report.summary = {
     passed:report.checks.filter(x => x.passed).length,
     failed:Math.max(1, report.failures.length)

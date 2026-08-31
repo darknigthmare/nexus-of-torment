@@ -3,12 +3,19 @@
   "product": "NEXUS OF TORMENT — Liturgie nerveuse",
   "version": "1.2.0",
   "target": "local-build",
-  "executedAt": "2026-08-31T16:36:10.403Z",
-  "url": "http://127.0.0.1:64298/",
+  "executedAt": "2026-08-31T18:16:54.695Z",
+  "url": "http://127.0.0.1:53844/",
   "browser": {
     "engine": "Chromium",
     "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
-    "headless": true
+    "headless": true,
+    "softwareRenderer": false,
+    "launchArgs": [
+      "--enable-webgl",
+      "--enable-gpu",
+      "--ignore-gpu-blocklist",
+      "--disable-dev-shm-usage"
+    ]
   },
   "checks": [
     {
@@ -35,7 +42,7 @@
         "mode": "campaign",
         "sector": "sanctum",
         "difficulty": "unstable",
-        "cameraYaw": -0.3342967824791657,
+        "cameraYaw": -0.31006591281597146,
         "webgl2": true,
         "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "renderScale": 1,
@@ -72,6 +79,39 @@
       }
     },
     {
+      "name": "Illustration originale chargée et doctrine explicitée",
+      "passed": true,
+      "details": {
+        "loaded": true,
+        "background": true,
+        "summary": "Rempart · 125 santé / 80 armure. Les dégâts reçus sous 35 % de santé sont réduits de 18 %. Le défi de référence."
+      }
+    },
+    {
+      "name": "Briefing accessible depuis le dossier",
+      "passed": true
+    },
+    {
+      "name": "Fermeture du briefing restaure le focus",
+      "passed": true
+    },
+    {
+      "name": "Export JSON téléchargeable depuis les réglages",
+      "passed": true
+    },
+    {
+      "name": "Import invalide rejeté sans perte",
+      "passed": true
+    },
+    {
+      "name": "Import annulable sans modification",
+      "passed": true
+    },
+    {
+      "name": "Export puis import exact du dossier",
+      "passed": true
+    },
+    {
       "name": "Accessibilité appliquée et focus contenu",
       "passed": true,
       "details": {
@@ -106,8 +146,8 @@
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 284,
-        "triangles": 8800,
+        "drawCalls": 285,
+        "triangles": 8920,
         "enemies": 4,
         "queued": 7
       }
@@ -127,8 +167,8 @@
         "renderScale": 1,
         "buffer": "1280x720",
         "fallbackHidden": true,
-        "drawCalls": 284,
-        "triangles": 8800,
+        "drawCalls": 285,
+        "triangles": 8920,
         "enemies": 4,
         "queued": 7
       }
@@ -148,6 +188,26 @@
           "minimum": 24
         }
       }
+    },
+    {
+      "name": "Redémarrage protégé par confirmation",
+      "passed": true
+    },
+    {
+      "name": "Annuler le redémarrage conserve la pause",
+      "passed": true
+    },
+    {
+      "name": "Aide en pause ne relance pas le combat",
+      "passed": true
+    },
+    {
+      "name": "Import désactivé pendant une tentative",
+      "passed": true
+    },
+    {
+      "name": "Abandon annulable sans perdre la tentative",
+      "passed": true
     },
     {
       "name": "Quatre difficultés instanciées",
@@ -342,10 +402,10 @@
       "name": "Service worker et cache installés",
       "passed": true,
       "details": {
-        "scope": "http://127.0.0.1:64298/",
+        "scope": "http://127.0.0.1:53844/",
         "controlled": true,
         "caches": [
-          "nexus-of-torment-v1.2.0"
+          "nexus-of-torment-build-b31f01ca2b6e051a0e7677955325fea9c3c2a2c80518f6e88c6593ed870f3fb8"
         ]
       }
     },
@@ -358,7 +418,7 @@
         "mode": "campaign",
         "sector": "sanctum",
         "difficulty": "unstable",
-        "cameraYaw": -0.30845242401682316,
+        "cameraYaw": -0.3116731094843922,
         "webgl2": true,
         "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "renderScale": 1,
@@ -375,7 +435,7 @@
       "passed": true,
       "details": {
         "status": 503,
-        "text": "Ressource indisponible hors ligne."
+        "text": "Ressource indisponible hors ligne. Fermez les onglets du jeu puis rouvrez-le en ligne pour actualiser son installation."
       }
     },
     {
@@ -397,6 +457,18 @@
         "scroll": 390,
         "sectors": 3
       }
+    },
+    {
+      "name": "Briefing mobile disponible et sans débordement",
+      "passed": true
+    },
+    {
+      "name": "Réglages accessibles au menu mobile",
+      "passed": true
+    },
+    {
+      "name": "Progression persistante accessible sur mobile",
+      "passed": true
     },
     {
       "name": "Run tactile lancé via UI",
@@ -458,6 +530,94 @@
       "passed": true
     },
     {
+      "name": "Greffes sans délai de lecture par défaut",
+      "passed": true,
+      "details": {
+        "before": 24,
+        "after": 24,
+        "state": "upgrade",
+        "timed": false
+      }
+    },
+    {
+      "name": "Intermission lançable par bouton tactile",
+      "passed": true
+    },
+    {
+      "name": "Guidage objectif orienté et chiffré",
+      "passed": true,
+      "details": "SCEAU · 12 M · À DROITE"
+    },
+    {
+      "name": "Commandes tactiles contenues en paysage",
+      "passed": true,
+      "details": [
+        {
+          "id": "touch-fire",
+          "x": 746,
+          "y": 296,
+          "width": 76,
+          "height": 76,
+          "inViewport": true
+        },
+        {
+          "id": "touch-move",
+          "x": 22,
+          "y": 266,
+          "width": 106,
+          "height": 106,
+          "inViewport": true
+        },
+        {
+          "id": "touch-pause",
+          "x": 747,
+          "y": 68,
+          "width": 79,
+          "height": 48,
+          "inViewport": true
+        }
+      ]
+    },
+    {
+      "name": "Perte de focus suspend le tactile et libère les entrées",
+      "passed": true,
+      "details": {
+        "state": "paused",
+        "held": 0,
+        "audio": "suspended"
+      }
+    },
+    {
+      "name": "Dossier endommagé réparé avec copie et avertissement",
+      "passed": true,
+      "details": {
+        "safe": true,
+        "backup": true,
+        "visible": true
+      }
+    },
+    {
+      "name": "Démarrage jouable sans périphérique audio",
+      "passed": true
+    },
+    {
+      "name": "Perte WebGL réelle suspend la simulation",
+      "passed": true,
+      "details": {
+        "state": "graphics-lost",
+        "frozen": true,
+        "enabled": false
+      }
+    },
+    {
+      "name": "Restauration WebGL exige reconstruction explicite",
+      "passed": true
+    },
+    {
+      "name": "Rechargement après perte graphique conserve la reprise",
+      "passed": true
+    },
+    {
       "name": "Console et runtime sans erreur",
       "passed": true,
       "details": []
@@ -469,11 +629,19 @@
     "desktopGameplay": "docs/screenshots/v1.2-desktop-gameplay.png",
     "mobileGameplay": "docs/screenshots/v1.2-mobile-gameplay.png"
   },
+  "auditEvidence": {
+    "briefing": "docs/screenshots/v1.2-briefing.png",
+    "save-tools": "docs/screenshots/v1.2-save-tools.png",
+    "mobile-menu": "docs/screenshots/v1.2-mobile-menu.png",
+    "mobile-grafts": "docs/screenshots/v1.2-mobile-grafts.png",
+    "mobile-landscape": "docs/screenshots/v1.2-mobile-landscape.png"
+  },
+  "buildRevision": "nexus-of-torment-build-b31f01ca2b6e051a0e7677955325fea9c3c2a2c80518f6e88c6593ed870f3fb8",
   "performance": {
     "viewport": "1280x720",
     "averageFps": 60,
-    "drawCalls": 284,
-    "triangles": 8800,
+    "drawCalls": 285,
+    "triangles": 8920,
     "samples": [
       60,
       60,
@@ -484,15 +652,24 @@
     "buffer": "1280x720"
   },
   "runtimeErrors": [],
+  "expectedRecoverySignals": [
+    {
+      "type": "recovery-console",
+      "message": "Error: Le contexte graphique a été perdu. Aucun ennemi ne peut agir pendant cette interruption.\n    at HTMLCanvasElement.<anonymous> (http://127.0.0.1:53844/src/main.js:56:35)",
+      "expectedOffline": false,
+      "expectedRecovery": true
+    }
+  ],
   "expectedOfflineSignals": [
     {
-      "type": "console",
+      "type": "desktop-console",
       "message": "Failed to load resource: the server responded with a status of 503 ()",
-      "expectedOffline": true
+      "expectedOffline": true,
+      "expectedRecovery": false
     }
   ],
   "summary": {
-    "passed": 35,
+    "passed": 60,
     "failed": 0
   }
 }

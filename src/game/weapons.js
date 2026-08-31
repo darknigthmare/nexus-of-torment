@@ -61,7 +61,8 @@
         amber:new Material({color:0x4e321f,emissive:0xe59645,pattern:3,metallic:.6,pulse:.8}),
         flesh:new Material({color:0x72504a,emissive:0x090303,pattern:2,metallic:.05}),
         glove:new Material({color:0x222326,emissive:0x020202,pattern:1,metallic:.35}),
-        muzzle:new Material({color:0xffa84d,emissive:0xff8d2d,pattern:3,metallic:0,alpha:.86,additive:true,depthWrite:false,pulse:1.4})
+        muzzle:new Material({color:0xffa84d,emissive:0xff8d2d,pattern:3,metallic:0,alpha:.86,additive:true,depthWrite:false,pulse:1.4}),
+        muzzleReduced:new Material({color:0xcf985f,emissive:0x25190f,pattern:0,metallic:0,alpha:.16,additive:true,depthWrite:false,pulse:0})
       };
     }
 
@@ -435,8 +436,9 @@
       }
       if(this.muzzleFlash>0){
         const local=visual.muzzle;
-        this.tempTransform.position.copy(local);this.tempTransform.rotation.set(Math.PI/2,0,time*8);const s=.22+this.muzzleFlash*.18;this.tempTransform.scale.set(s,s*1.6,s);this.tempTransform.updateMatrix();
-        mat4Multiply(this.tempTransform.matrix,this.rootMatrix,this.tempTransform.matrix);renderer.draw(renderer.meshes.cone8,this.tempTransform.matrix,this.materials.muzzle);
+        const reduced=Boolean(this.game.settings?.reducedFlashes);
+        this.tempTransform.position.copy(local);this.tempTransform.rotation.set(Math.PI/2,0,reduced?0:time*8);const s=(.22+this.muzzleFlash*.18)*(reduced?.4:1);this.tempTransform.scale.set(s,s*1.6,s);this.tempTransform.updateMatrix();
+        mat4Multiply(this.tempTransform.matrix,this.rootMatrix,this.tempTransform.matrix);renderer.draw(renderer.meshes.cone8,this.tempTransform.matrix,reduced?this.materials.muzzleReduced:this.materials.muzzle);
       }
     }
 

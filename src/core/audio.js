@@ -16,27 +16,73 @@
       this.drones = [];
       this.heartbeatTimer = 0;
       this.listenerYaw = 0;
+      this.unavailable = false;
+      this.lastError = null;
+      this.compressor = null;
     }
     init() {
       if (this.context) {
-        if (this.context.state === 'suspended') this.context.resume();
-        return;
+        if (this.context.state === 'closed') { this.unavailable = true; this.started = false; this.context = null; return false; }
+        if (this.context.state === 'suspended') this._resumeSafely();
+        return !this.unavailable;
       }
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return;
-      this.context = new AudioContextClass();
-      this.master = this.context.createGain();
-      this.sfx = this.context.createGain();
-      this.ambient = this.context.createGain();
-      this.master.gain.value = this.volume;
-      this.sfx.gain.value = .9;
-      this.ambient.gain.value = .28;
-      this.sfx.connect(this.master);
-      this.ambient.connect(this.master);
-      this.master.connect(this.context.destination);
-      this.noiseBuffer = this._createNoiseBuffer(2);
-      this._startDrones();
-      this.started = true;
+      if (!AudioContextClass || this.unavailable) { this.unavailable = true; return false; }
+      try {
+        this.context = new AudioContextClass();
+        this.master = this.context.createGain();
+        this.sfx = this.context.createGain();
+        this.ambient = this.context.createGain();
+        this.master.gain.value = this.volume;
+        this.sfx.gain.value = .9;
+        this.ambient.gain.value = .28;
+        this.sfx.connect(this.master);
+        this.ambient.connect(this.master);
+        // Compression douce du bus final : contenir les superpositions sans écraser les impacts.
+        this.compressor = this.context.createDynamicsCompressor?.() || null;
+        if (this.compressor) {
+          this.compressor.threshold.value = -14;
+          this.compressor.knee.value = 12;
+          this.compressor.ratio.value = 4;
+          this.compressor.attack.value = .006;
+          this.compressor.release.value = .15;
+          this.master.connect(this.compressor);
+          this.compressor.connect(this.context.destination);
+        } else this.master.connect(this.context.destination);
+        this.noiseBuffer = this._createNoiseBuffer(2);
+        this._startDrones();
+        this.started = true;
+        this.unavailable = false;
+        if (this.context.state === 'suspended') this._resumeSafely();
+        return true;
+      } catch (error) {
+        this.lastError = String(error.message || error);
+        this.unavailable = true;
+        this.started = false;
+        try { this.context?.close?.()?.catch?.(() => {}); } catch { /* Le jeu reste jouable sans périphérique audio. */ }
+        this.context = this.master = this.sfx = this.ambient = this.compressor = null;
+        this.drones.length = 0;
+        return false;
+      }
+    }
+    _resumeSafely() {
+      try {
+        return Promise.resolve(this.context?.resume?.()).then(() => {
+          this.unavailable = false;
+          this.lastError = null;
+          return true;
+        }).catch(error => {
+          this.unavailable = true;
+          this.lastError = String(error.message || error);
+          return false;
+        });
+      } catch (error) { this.unavailable = true; this.lastError = String(error.message || error); return Promise.resolve(false); }
+    }
+    suspend() {
+      if (!this.context || this.context.state === 'closed') return Promise.resolve(false);
+      try {
+        return Promise.resolve(this.context.suspend?.()).then(() => true).catch(() => false);
+      } catch { return Promise.resolve(false); }
     }
     setVolume(value) {
       this.volume = clamp(Number(value) || 0, 0, 1);

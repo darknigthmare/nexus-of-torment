@@ -90,6 +90,7 @@
       this.invulnerable = 0;
       this.slowTimer = 0;
       this.hookTimer = 0;
+      this.slowAmount = 0;
       this.camera.yaw = Math.PI;
       this.camera.pitch = 0;
       this.camera.position.set(0,this.eyeHeight,10);
@@ -109,6 +110,7 @@
       const game = this.game, input = game.input, settings = game.settings;
       this.invulnerable = Math.max(0, this.invulnerable - dt);
       this.slowTimer = Math.max(0, this.slowTimer - dt);
+      if (this.slowTimer <= 0) this.slowAmount = 0;
       this.hookTimer = Math.max(0, this.hookTimer - dt);
       this.abilityActive = Math.max(0, this.abilityActive - dt);
       const abilityRate = this.modifiers.abilityRate * (game.currentModifier?.abilityRate ?? 1);
@@ -260,7 +262,11 @@
     }
     heal(amount) { const before=this.health; this.health=clamp(this.health+amount,0,this.maxHealth); return this.health-before; }
     addArmor(amount) { const before=this.armor; this.armor=clamp(this.armor+amount,0,this.maxArmor); return this.armor-before; }
-    slow(amount,duration) { this.slowAmount=Math.max(this.slowAmount,amount); this.slowTimer=Math.max(this.slowTimer,duration); }
+    slow(amount,duration) {
+      if (this.slowTimer <= 0) this.slowAmount = 0;
+      this.slowAmount=Math.max(this.slowAmount,amount);
+      this.slowTimer=Math.max(this.slowTimer,duration);
+    }
     hook(source,duration=.8) { this.hookSource.copy(source); this.hookTimer=Math.max(this.hookTimer,duration); this.slow(.35,duration); }
     shake(amount,duration=.12) { this.cameraShake=Math.max(this.cameraShake,amount); this.cameraShakeTime=Math.max(this.cameraShakeTime,duration); }
     addRecoil(pitch,yaw=0) { this.recoilPitch += pitch; this.recoilYaw += yaw; }
@@ -282,7 +288,7 @@
       mesh, material,
       basePosition:new Vec3(...position), position:new Vec3(...position),
       baseRotation:new Vec3(...rotation), rotation:new Vec3(...rotation),
-      scale:new Vec3(...scale), tag, phase,
+      baseScale:new Vec3(...scale), scale:new Vec3(...scale), tag, phase,
       localMatrix:mat4(), worldMatrix:mat4()
     };
   }
@@ -299,6 +305,26 @@
       veil:new Material({color:0x5d3153,emissive:0xc84f98,pattern:4,metallic:0,alpha:.56,doubleSided:true,additive:true,depthWrite:false,pulse:1}),
       flash:new Material({color:0xffffff,emissive:0xffffff,pattern:0,metallic:.1,pulse:1.4})
     };
+  }
+
+  function highContrastEnemyMaterials(source,elite=false,boss=false){
+    // Palette ciblée, stable et mise en cache : seuls les ennemis changent,
+    // sans contour en double passe, lumière ni géométrie supplémentaires.
+    const colors={
+      flesh:elite?0xe8c38e:boss?0xd9cbdc:0xd9ddd2, fleshDark:0x9eb6b8,
+      iron:0x9ebec9, ironLight:0xc0d5df, bone:0xf0d898,
+      ritual:elite?0xf3bb65:boss?0xeda0b3:0xe4ad83, veil:0xb9cedd
+    };
+    const byMaterial=new Map();
+    for(const [key,color] of Object.entries(colors)){
+      byMaterial.set(source[key],source[key].clone({
+        color,emissive:key==='ritual'?0x5c3c24:0x30444b,
+        pattern:0,metallic:.18,pulse:0,alpha:key==='veil'?.92:1,
+        additive:false,depthWrite:true
+      }));
+    }
+    const head=source.bone.clone({color:0xf1d79e,emissive:0x605135,pattern:0,metallic:.08,pulse:0,alpha:1,additive:false,depthWrite:true});
+    return {byMaterial,head,ritual:byMaterial.get(source.ritual)};
   }
 
   function buildEnemyVisual(enemy) {
@@ -460,7 +486,10 @@
       this.radius=this.config.radius*(this.elite?1.08:1);
       this.height=this.config.height*(this.elite?1.08:1);
       this.materials=enemyMaterials(this.config,this.elite,this.boss);
+      this.contrastMaterials=null;
       this.parts=buildEnemyVisual(this);
+      this.headParts=this.parts.filter(part=>part.tag==='head'||part.tag==='choirHead');
+      this.bodyParts=this.parts.filter(part=>part.tag==='torso'||part.tag==='body'||part.tag==='core');
       this.rootMatrix=mat4();
       this.rootTransform=new Transform();
       this.localTransform=new Transform();
@@ -487,6 +516,7 @@
       this.soundTimer-=dt;
       this.stunTimer=Math.max(0,this.stunTimer-dt);
       this.slowTimer=Math.max(0,this.slowTimer-dt);
+      if(this.slowTimer<=0)this.slowAmount=0;
       this.buffTimer=Math.max(0,this.buffTimer-dt);
       this.hitFlash=Math.max(0,this.hitFlash-dt*6);
       this.attackPulse=Math.max(0,this.attackPulse-dt*3.5);
@@ -557,6 +587,10 @@
     }
     _melee(distanceXZ) {
       if(distanceXZ<=this.config.attackRange+this.game.player.radius && this.attackTimer<=0){
+        const player=this.game.player;
+        const origin=new Vec3(this.position.x,this.position.y+Math.min(this.height*.55,1.4),this.position.z);
+        const target=new Vec3(player.position.x,player.position.y+1.05,player.position.z);
+        if(this.game.arena.lineBlocked(origin,target))return false;
         this.attackTimer=this.config.attackCooldown * (this.buffTimer > 0 ? .75 : 1);
         this.attackPulse=1;
         this.game.damagePlayer(this.damage,this.position,this.type === 'choir' ? .035 : .012);
@@ -707,7 +741,7 @@
         this._melee(distance);
         if(this.abilityTimer<=0){
           if(distance>8 && chance(.42)){this.state='charge';this.stateTimer=1.4;this.chargeDirection.copy(dir);}
-          else {this.state='slamWindup';this.stateTimer=.9;this.attackPulse=1;}
+          else {this.state='slamWindup';this.stateTimer=.9;this.attackPulse=1;this.game.telegraphBossSlam?.(this);}
         }
       }
       if(this.bossPhase>=2 && this.summonTimer<=0){
@@ -795,7 +829,10 @@
       this.hitFlash=1;
       this.lastHitZone=hit.zone||'body';
       if(hit.stun)this.stunTimer=Math.max(this.stunTimer,hit.stun);
-      if(hit.slow){this.slowAmount=Math.max(this.slowAmount,hit.slow);this.slowTimer=Math.max(this.slowTimer,hit.slowDuration||1);}
+      if(hit.slow){
+        if(this.slowTimer<=0)this.slowAmount=0;
+        this.slowAmount=Math.max(this.slowAmount,hit.slow);this.slowTimer=Math.max(this.slowTimer,hit.slowDuration||1);
+      }
       if(hit.direction && !this.boss){this.velocity.addScaled(hit.direction,Math.min(3.5,damage*.012));}
       if(this.health<=0){this.health=0;this.alive=false;this.game.killEnemy(this,hit);return {damage,killed:true};}
       return {damage,killed:false};
@@ -812,19 +849,47 @@
       const flying=this.config.flying;
       const isArchdeacon=this.type==='archdeacon';
       const baseY=this.position.y;
+      const scale=(this.elite?1.08:1)*(this.boss?1.06:1)*(this.type==='twin'?this.teleportAlpha:1);
+      const cos=Math.cos(this.yaw),sin=Math.sin(this.yaw),time=this.game.time||0;
       const bodyCenter=_hitBody.set(this.position.x,baseY+(isArchdeacon ? .52 : (flying ? 0 : this.height*.48)),this.position.z);
-      const headCenter=_hitHead.set(this.position.x,baseY+(isArchdeacon ? 1.55 : (flying ? .35 : this.height*.86)),this.position.z);
       const bodyRadius=this.radius*(this.boss?1.35:1.12);
-      const headRadius=this.radius*(this.boss ? .62 : .54);
-      const body=raySphere(origin,direction,bodyCenter,bodyRadius);
+      let body=raySphere(origin,direction,bodyCenter,bodyRadius);
+      if(isArchdeacon){
+        // Le prélat suspendu n’a pas le torse massif du Gardien : sa sphère héritée
+        // occultait la tête au-dessus des volumes réellement dessinés.
+        body=Infinity;
+        for(const part of this.bodyParts){
+          const x=part.basePosition.x,y=part.basePosition.y,z=part.basePosition.z;
+          bodyCenter.set(this.position.x+(x*cos+z*sin)*scale,baseY+y*scale,this.position.z+(-x*sin+z*cos)*scale);
+          body=Math.min(body,rayEllipsoid(origin,direction,bodyCenter,part.baseScale,scale,this.yaw+part.baseRotation.y));
+        }
+      }
       if(body<nearest&&body<=maxDistance){nearest=body;zone='body';}
-      const head=raySphere(origin,direction,headCenter,headRadius);
-      const headPriority=isArchdeacon&&head<=maxDistance&&head<=body+.5;
-      if((head<nearest&&head<=maxDistance)||headPriority){nearest=head;zone='head';}
+      // Même pose, échelle et dimensions que les pièces visibles ; aucun rayon global élargi.
+      if(scale>0)for(const part of this.headParts){
+        let x=part.basePosition.x,y=part.basePosition.y,z=part.basePosition.z;
+        let yaw=this.yaw+part.baseRotation.y;
+        if(part.tag==='choirHead'){
+          const angle=part.phase+time*.55;
+          x=Math.cos(angle)*.78;z=Math.sin(angle)*.78;y=Math.sin(angle*2+time)*.35;
+          yaw=this.yaw-angle;
+        }else yaw+=Math.sin(this.age*1.4+part.phase)*.12;
+        _hitHead.set(this.position.x+(x*cos+z*sin)*scale,baseY+y*scale,this.position.z+(-x*sin+z*cos)*scale);
+        const head=rayEllipsoid(origin,direction,_hitHead,part.baseScale,scale,yaw);
+        const headPriority=isArchdeacon&&head<=maxDistance&&head<=body+.5;
+        if((head<nearest&&head<=maxDistance)||headPriority){nearest=head;zone='head';}
+      }
       return {distance:nearest,zone,hit:zone!==null};
     }
 
     draw(renderer,time) {
+      const settings=this.game.settings||{};
+      const contrast=settings.enemyContrast
+        ? (this.contrastMaterials||(this.contrastMaterials=highContrastEnemyMaterials(this.materials,this.elite,this.boss)))
+        : null;
+      // Le hitmarker et le son restent disponibles ; l’option supprime le flash
+      // blanc plein corps au lieu de le remplacer par un autre clignotement.
+      const hitMaterial=this.hitFlash>.05&&!settings.reducedFlashes?this.materials.flash:null;
       const spawnT=1-clamp(this.spawnTimer/1.15,0,1);
       const rootY=this.config.flying?this.position.y:this.position.y-(1-spawnT)*this.height*.72;
       const scale=(this.elite?1.08:1)*(this.boss?1.06:1)*(this.type==='twin'?this.teleportAlpha:1);
@@ -834,7 +899,9 @@
       this.rootTransform.updateMatrix();
       const walk=Math.sin(this.age*(this.type==='grinder'?4:7)+this.position.x*.2);
       for(const p of this.parts){
-        p.position.copy(p.basePosition);p.rotation.copy(p.baseRotation);
+        // Rebuild the pose from its authored proportions: drawing must not
+        // accumulate breathing scale or depend on frame rate / paused frames.
+        p.position.copy(p.basePosition);p.rotation.copy(p.baseRotation);p.scale.copy(p.baseScale);
         if(p.tag==='legL')p.rotation.x+=walk*.48;
         else if(p.tag==='legR')p.rotation.x-=walk*.48;
         else if(p.tag==='armL')p.rotation.x-=walk*.38+this.attackPulse*.65;
@@ -852,16 +919,19 @@
         if(p.tag==='torso'||p.tag==='body'||p.tag==='core')p.scale.y*=1+Math.sin(this.age*2.2+p.phase)*.025;
         this.localTransform.position.copy(p.position);this.localTransform.rotation.copy(p.rotation);this.localTransform.scale.copy(p.scale);this.localTransform.updateMatrix();
         mat4Multiply(p.worldMatrix,this.rootTransform.matrix,this.localTransform.matrix);
-        renderer.draw(p.mesh,p.worldMatrix,this.hitFlash>.05?this.materials.flash:p.material);
+        const baseMaterial=contrast
+          ? (p.tag==='head'||p.tag==='choirHead'?contrast.head:contrast.byMaterial.get(p.material)||p.material)
+          : p.material;
+        renderer.draw(p.mesh,p.worldMatrix,hitMaterial||baseMaterial);
       }
       if(this.elite){
         const ring=new Transform(new Vec3(this.position.x,(this.config.flying?this.position.y:0)+.05,this.position.z),new Vec3(0,time*.8,0),new Vec3(this.radius*3.4,1,this.radius*3.4));
-        ring.updateMatrix();renderer.draw(renderer.meshes.torusLow,ring.matrix,this.materials.ritual);
+        ring.updateMatrix();renderer.draw(renderer.meshes.torusLow,ring.matrix,contrast?.ritual||this.materials.ritual);
       }
       if(this.objectiveMarked){
         const markerY=(this.config.flying?this.position.y:this.height)+.8+Math.sin(time*3+this.phase)*.12;
         const marker=new Transform(new Vec3(this.position.x,markerY,this.position.z),new Vec3(Math.PI/2,time*1.4,0),new Vec3(this.radius*2.5,this.radius*2.5,this.radius*2.5));
-        marker.updateMatrix();renderer.draw(renderer.meshes.torusLow,marker.matrix,this.materials.ritual);
+        marker.updateMatrix();renderer.draw(renderer.meshes.torusLow,marker.matrix,contrast?.ritual||this.materials.ritual);
       }
     }
   }
@@ -995,6 +1065,20 @@
     value=Math.abs(point.z-collider.min.z);if(value<best){best=value;out.set(0,0,-1);}
     value=Math.abs(collider.max.z-point.z);if(value<best)out.set(0,0,1);
     return out;
+  }
+
+  // Un rayon ramené dans l’ellipsoïde local garde son paramètre de distance monde.
+  function rayEllipsoid(origin,direction,center,dimensions,scale,yaw){
+    const cos=Math.cos(yaw),sin=Math.sin(yaw);
+    const rx=dimensions.x*scale*.5,ry=dimensions.y*scale*.5,rz=dimensions.z*scale*.5;
+    const x=origin.x-center.x,y=origin.y-center.y,z=origin.z-center.z;
+    const ox=(x*cos-z*sin)/rx,oy=y/ry,oz=(x*sin+z*cos)/rz;
+    const dx=(direction.x*cos-direction.z*sin)/rx,dy=direction.y/ry,dz=(direction.x*sin+direction.z*cos)/rz;
+    const a=dx*dx+dy*dy+dz*dz,b=ox*dx+oy*dy+oz*dz,c=ox*ox+oy*oy+oz*oz-1;
+    const discriminant=b*b-a*c;
+    if(discriminant<0||a<=0)return Infinity;
+    const root=Math.sqrt(discriminant),near=(-b-root)/a,far=(-b+root)/a;
+    return near>=0?near:far>=0?far:Infinity;
   }
 
   const _vA=new Vec3(),_vB=new Vec3(),_vC=new Vec3(),_vD=new Vec3();

@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -25,11 +25,12 @@ jobs:
         env:
           NEXUS_CHROME_PATH: /usr/bin/google-chrome
           NEXUS_QA_OUTPUT_DIR: .qa/ci
+          NEXUS_QA_SOFTWARE_RENDERER: "1"
           # Les runners hébergés utilisent un renderer logiciel variable.
           # La porte matérielle locale reste à 30 FPS de médiane et 24 FPS minimum.
           NEXUS_MIN_FPS: "1"
           NEXUS_MIN_SAMPLE_FPS: "1"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: nexus-browser-qa

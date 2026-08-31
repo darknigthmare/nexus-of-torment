@@ -9,6 +9,17 @@
   const { Camera, Renderer, ParticleSystem, Input, SaveStore, Transform, Material, modelMatrixBetween } = E;
   const { Player, Enemy, Projectile, Pickup } = NT.Entities;
   const prefersReducedMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  const RUN_MODES = Object.freeze({ campaign:true, endless:true });
+  const ownedId = (map, id) => typeof id === 'string' && Boolean(map) && Object.hasOwn(map, id);
+  const ownValue = (map, id, fallback = 0) => map && Object.hasOwn(map, id) ? map[id] : fallback;
+  function safeMetaLevels(source) {
+    const levels = {};
+    for (const [id, definition] of Object.entries(D.META_UPGRADES)) {
+      const value = ownValue(source, id);
+      levels[id] = Number.isFinite(value) ? clamp(Math.floor(value), 0, definition.max) : 0;
+    }
+    return levels;
+  }
 
   const DEFAULT_SETTINGS = Object.freeze({
     sensitivity: 1,
@@ -24,7 +35,9 @@
     invertY: false,
     uiContrast: false,
     enemyContrast: false,
-    subtitles: true
+    subtitles: true,
+    guidedHints: true,
+    timedUpgrades: false
   });
 
   const DEFAULT_SAVE = {
@@ -123,9 +136,11 @@
         ritual: new Material({ color:0x9c1f32, emissive:0xf03849, pattern:3, metallic:.1, alpha:.72, additive:true, depthWrite:false, pulse:1.25 }),
         ward: new Material({ color:0x2f929a, emissive:0x66f0ef, pattern:3, metallic:.1, alpha:.65, additive:true, depthWrite:false, pulse:1.2 }),
         ghost: new Material({ color:0x633653, emissive:0xd764a4, pattern:4, metallic:0, alpha:.34, additive:true, depthWrite:false, doubleSided:true, pulse:1.4 }),
-        explosion: new Material({ color:0xe47739, emissive:0xff7933, pattern:3, metallic:0, alpha:.76, additive:true, depthWrite:false, pulse:1.5 })
+        explosion: new Material({ color:0xe47739, emissive:0xff7933, pattern:3, metallic:0, alpha:.76, additive:true, depthWrite:false, pulse:1.5 }),
+        bossWarning: new Material({ color:0xffb666, emissive:0xf49b38, pattern:0, metallic:0, alpha:.48, additive:true, depthWrite:false, pulse:0 })
       };
       this.effectTransform = new Transform();
+      this.bossWarningTransform = new Transform();
       this.effectMatrix = mat4();
       this.lightA = new Vec3();
       this.lightB = new Vec3();
@@ -242,11 +257,11 @@
 
     startRun(classId = 'bulwark', difficultyId = 'unstable', modeId = 'campaign', sectorId = 'sanctum') {
       this.audio.init();
-      this.lastClassId = D.CLASSES[classId] ? classId : 'bulwark';
-      this.lastDifficultyId = D.DIFFICULTIES[difficultyId] ? difficultyId : 'unstable';
-      this.modeId = modeId === 'endless' ? 'endless' : 'campaign';
+      this.lastClassId = ownedId(D.CLASSES, classId) ? classId : 'bulwark';
+      this.lastDifficultyId = ownedId(D.DIFFICULTIES, difficultyId) ? difficultyId : 'unstable';
+      this.modeId = ownedId(RUN_MODES, modeId) ? modeId : 'campaign';
       const sectorIds = Object.keys(D.SECTORS || {});
-      this.sectorId = !sectorIds.length || D.SECTORS?.[sectorId] ? sectorId : sectorIds[0];
+      this.sectorId = ownedId(D.SECTORS, sectorId) ? sectorId : sectorIds[0] || 'sanctum';
       this.difficulty = D.DIFFICULTIES[this.lastDifficultyId];
       this.currentModifier = D.WAVE_MODIFIERS[0];
       this.wave = 0;
@@ -283,7 +298,8 @@
       this.arena.reset();
       this.arena.setSector?.(this.sectorId);
       this.arena.setObjectiveZone?.(null);
-      this.player.reset(this.lastClassId, this.save.data.meta || {});
+      const metaLevels = safeMetaLevels(this.save.data.meta);
+      this.player.reset(this.lastClassId, metaLevels);
       const startPosition = this.arena.getStartPosition?.();
       if (startPosition) {
         this.player.position.copy(startPosition);
@@ -294,7 +310,7 @@
         this.camera.yaw = Math.atan2(targetX - startPosition.x, -(targetZ - startPosition.z));
         this.camera.pitch = 0;
       }
-      this.weapons.reset(this.save.data.meta || {});
+      this.weapons.reset(metaLevels);
       this.state = 'playing';
       this.previousState = 'playing';
       this.ui.enterGame();
@@ -841,7 +857,7 @@
     _snapshotActiveRun(nextWave = this.wave + 1) {
       const weaponStates = {};
       for (const [id, state] of Object.entries(this.weapons.states || {})) {
-        if (!D.WEAPONS[id]) continue;
+        if (!ownedId(D.WEAPONS, id)) continue;
         weaponStates[id] = { mag:state.mag, reserve:state.reserve, maxReserve:state.maxReserve };
       }
       return {
@@ -888,17 +904,17 @@
     }
 
     _validateActiveRun(raw) {
-      if (!raw || typeof raw !== 'object' || raw.version !== 1) return null;
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.version !== 1) return null;
       const number = (value, min, max, fallback = min) => {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? clamp(parsed, min, max) : fallback;
       };
-      const classId = D.CLASSES[raw.classId] ? raw.classId : null;
-      const difficultyId = D.DIFFICULTIES[raw.difficultyId] ? raw.difficultyId : null;
+      const classId = ownedId(D.CLASSES, raw.classId) ? raw.classId : null;
+      const difficultyId = ownedId(D.DIFFICULTIES, raw.difficultyId) ? raw.difficultyId : null;
       if (!classId || !difficultyId) return null;
-      const modeId = raw.modeId === 'endless' ? 'endless' : 'campaign';
+      const modeId = ownedId(RUN_MODES, raw.modeId) ? raw.modeId : 'campaign';
       const sectorIds = Object.keys(D.SECTORS || {});
-      const sectorId = !sectorIds.length || D.SECTORS?.[raw.sectorId] ? (raw.sectorId || 'sanctum') : sectorIds[0];
+      const sectorId = ownedId(D.SECTORS, raw.sectorId) ? raw.sectorId : sectorIds[0] || 'sanctum';
       const sectorBounds = D.SECTORS?.[sectorId]?.bounds;
       const playerRadius = .42;
       const positionBounds = {
@@ -911,9 +927,9 @@
       const statsSource = raw.stats && typeof raw.stats === 'object' ? raw.stats : {};
       const statKeys = Object.keys(this._newStats());
       const stats = {};
-      for (const key of statKeys) stats[key] = number(statsSource[key], 0, 1e9, 0);
+      for (const key of statKeys) stats[key] = number(ownValue(statsSource, key), 0, 1e9, 0);
       const unlockedWeapons = Array.isArray(player.unlockedWeapons)
-        ? [...new Set(player.unlockedWeapons.filter(id => D.WEAPONS[id]))]
+        ? [...new Set(player.unlockedWeapons.filter(id => ownedId(D.WEAPONS, id)))]
         : ['rifle','shotgun'];
       if (!unlockedWeapons.includes('rifle')) unlockedWeapons.unshift('rifle');
       if (!unlockedWeapons.includes('shotgun')) unlockedWeapons.push('shotgun');
@@ -926,19 +942,19 @@
         abilityRate:[.1,10], armorOnElite:[0,500], penetration:[0,10], lowHealthDamage:[0,5]
       };
       for (const [key, limits] of Object.entries(modifierLimits)) {
-        if (player.modifiers && Object.prototype.hasOwnProperty.call(player.modifiers, key)) modifiers[key] = number(player.modifiers[key], limits[0], limits[1], limits[0]);
+        if (player.modifiers && Object.hasOwn(player.modifiers, key)) modifiers[key] = number(player.modifiers[key], limits[0], limits[1], limits[0]);
       }
-      modifiers.lastRite = Boolean(player.modifiers?.lastRite);
+      modifiers.lastRite = Boolean(ownValue(player.modifiers, 'lastRite', false));
       const upgradeStacks = {};
       for (const upgrade of D.UPGRADES) {
-        const value = Math.floor(number(player.upgradeStacks?.[upgrade.id], 0, upgrade.max, 0));
+        const value = Math.floor(number(ownValue(player.upgradeStacks, upgrade.id), 0, upgrade.max, 0));
         if (value > 0) upgradeStacks[upgrade.id] = value;
       }
       const states = {};
       const rawStates = raw.weapons?.states && typeof raw.weapons.states === 'object' ? raw.weapons.states : {};
       for (const id of unlockedWeapons) {
         const config = D.WEAPONS[id];
-        const source = rawStates[id] || {};
+        const source = ownValue(rawStates, id, {}) || {};
         const maxReserve = number(source.maxReserve, 0, config.reserve * 10, config.reserve);
         states[id] = {
           mag:number(source.mag, 0, config.magazine * 10, config.magazine),
@@ -972,7 +988,7 @@
           unlockedWeapons, modifiers, upgradeStacks
         },
         weapons:{
-          currentId:unlockedWeapons.includes(raw.weapons?.currentId) ? raw.weapons.currentId : unlockedWeapons[0],
+          currentId:ownedId(D.WEAPONS, raw.weapons?.currentId) && unlockedWeapons.includes(raw.weapons.currentId) ? raw.weapons.currentId : unlockedWeapons[0],
           states
         }
       };
@@ -1021,7 +1037,8 @@
       this.arena.reset();
       this.arena.setSector?.(this.sectorId);
       this.arena.setObjectiveZone?.(null);
-      this.player.reset(this.lastClassId, this.save.data.meta || {});
+      const metaLevels = safeMetaLevels(this.save.data.meta);
+      this.player.reset(this.lastClassId, metaLevels);
       this.player.maxHealth = snapshot.player.maxHealth;
       this.player.health = clamp(snapshot.player.health, 1, this.player.maxHealth);
       this.player.maxArmor = snapshot.player.maxArmor;
@@ -1038,7 +1055,7 @@
       this.player.unlockedWeapons = new Set(snapshot.player.unlockedWeapons);
       Object.assign(this.player.modifiers, snapshot.player.modifiers);
       this.player.upgradeStacks = { ...snapshot.player.upgradeStacks };
-      this.weapons.reset(this.save.data.meta || {});
+      this.weapons.reset(metaLevels);
       this.weapons.states = {};
       for (const id of snapshot.player.unlockedWeapons) {
         const state = this.weapons.ensureWeapon(id);
@@ -1419,8 +1436,19 @@
       this.explode(new Vec3(position.x,.2,position.z), radius, 0, { playerOwned:false, source:'chain', color:0xc73543 });
     }
 
+    bossSlamRadius(phase = 1) {
+      return 7.5 + phase * 1.2;
+    }
+
+    telegraphBossSlam(enemy) {
+      if (!enemy?.alive || enemy.type !== 'gatekeeper' || enemy.state !== 'slamWindup') return false;
+      this.audio.enemy('bell', enemy.position, this.player.position, this.camera.yaw);
+      this.ui.subtitle?.('GARDIEN — Onde de choc : sortez du cercle.', 1.3);
+      return true;
+    }
+
     bossSlam(position, phase = 1) {
-      const radius = 7.5 + phase * 1.2;
+      const radius = this.bossSlamRadius(phase);
       const distance = this.player.position.distanceToXZ(position);
       if (distance < radius) {
         this.damagePlayer((24 + phase*7) * lerp(1,.35,distance/radius), position, .025 * phase);
@@ -1508,6 +1536,7 @@
       }
 
       this._drawEffects();
+      this._drawBossTelegraphs();
       this.particles.draw();
       if (this.state === 'playing' && !this.player.dead) {
         this.renderer.clearDepth();
@@ -1531,13 +1560,32 @@
       });
       const cameraLight = this.lightA.copy(this.camera.position).addScaled(this.camera.forward, 1.5);
       this.renderer.setLight(0, cameraLight, blackout ? 0xb7d0d8 : 0xffe4d2, blackout ? 7.5 : 5.2);
-      this.lightB.set(0,3.2,-8);
-      this.renderer.setLight(1, this.lightB, 0xd92f42, 7 + this.arena.gatePulse*5);
-      this.lightC.set(-11,2.2,5);
-      this.renderer.setLight(2, this.lightC, 0x4ac1c8, 4.2);
+      // Three authored sector lights share the existing four-light shader budget
+      // with the player light. The third becomes a readable boss accent in combat.
+      const lights = (this.arena.sector || D.SECTORS[this.sectorId] || D.SECTORS.sanctum).lighting;
+      this.lightB.set(...lights[0].position);
+      this.renderer.setLight(1, this.lightB, lights[0].color, lights[0].power + this.arena.gatePulse*5);
+      this.lightC.set(...lights[1].position);
+      this.renderer.setLight(2, this.lightC, lights[1].color, lights[1].power);
       if (boss) this.lightD.set(boss.position.x,boss.position.y+2.4,boss.position.z);
-      else this.lightD.set(12,2,-9);
-      this.renderer.setLight(3, this.lightD, boss ? 0xff263d : 0xd08742, boss ? 8.5 : 3.5);
+      else this.lightD.set(...lights[2].position);
+      this.renderer.setLight(3, this.lightD, boss ? 0xff263d : lights[2].color, boss ? 8.5 : lights[2].power);
+    }
+
+    _drawBossTelegraphs() {
+      if (this.state !== 'playing' && this.state !== 'paused' && this.state !== 'input-paused') return;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive || enemy.type !== 'gatekeeper' || enemy.state !== 'slamWindup') continue;
+        const radius = this.bossSlamRadius(enemy.bossPhase);
+        const transform = this.bossWarningTransform;
+        transform.position.set(enemy.position.x, .065, enemy.position.z);
+        transform.rotation.set(0, 0, 0);
+        // Torus outer radius is 0.5: this scale matches the damaging radius,
+        // rather than showing a smaller decorative ring. No flashing or spin.
+        transform.scale.set(radius*2, .16, radius*2);
+        transform.updateMatrix();
+        this.renderer.draw(this.renderer.meshes.torusLow, transform.matrix, this.effectMaterials.bossWarning);
+      }
     }
 
     _drawEffects() {
