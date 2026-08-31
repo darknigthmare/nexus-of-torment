@@ -1,0 +1,21 @@
+# Le manifeste SHA-256 décrit les blobs Git publiés, pas les variantes CRLF locales.
+# Par défaut, ne jamais transformer les octets des ressources binaires/inconnues.
+* -text
+
+# Contrat explicite des fichiers texte Nexus : blob et checkout canoniques en LF.
+.gitattributes text eol=lf
+.gitignore text eol=lf
+LICENSE text eol=lf
+MANIFEST.sha256 text eol=lf
+*.md text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.webmanifest text eol=lf
+*.svg text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.bat text eol=lf

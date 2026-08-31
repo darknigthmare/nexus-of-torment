@@ -1,0 +1,498 @@
+{
+  "schemaVersion": 1,
+  "product": "NEXUS OF TORMENT — Liturgie nerveuse",
+  "version": "1.2.0",
+  "target": "local-build",
+  "executedAt": "2026-08-31T16:36:10.403Z",
+  "url": "http://127.0.0.1:64298/",
+  "browser": {
+    "engine": "Chromium",
+    "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "headless": true
+  },
+  "checks": [
+    {
+      "name": "Chrome local disponible",
+      "passed": true,
+      "details": "C:/Program Files/Google/Chrome/Application/chrome.exe"
+    },
+    {
+      "name": "Build dist disponible pour le navigateur",
+      "passed": true,
+      "details": "C:\\Users\\chuck\\Documents\\Codex\\2026-08-25\\ajoute-dans-chaque-github-qui-n\\games\\nexus-of-torment\\dist"
+    },
+    {
+      "name": "Chargement HTTP desktop",
+      "passed": true,
+      "details": 200
+    },
+    {
+      "name": "Boot WebGL2 sans fallback",
+      "passed": true,
+      "details": {
+        "state": "menu",
+        "wave": 0,
+        "mode": "campaign",
+        "sector": "sanctum",
+        "difficulty": "unstable",
+        "cameraYaw": -0.3342967824791657,
+        "webgl2": true,
+        "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "renderScale": 1,
+        "buffer": "1280x720",
+        "fallbackHidden": true,
+        "drawCalls": 243,
+        "triangles": 7816,
+        "enemies": 0,
+        "queued": 0
+      }
+    },
+    {
+      "name": "Menu complet: 3 classes, 4 difficultés, 2 modes, 3 secteurs",
+      "passed": true,
+      "details": {
+        "classes": 3,
+        "difficulties": 4,
+        "modes": 2,
+        "sectors": 3,
+        "lang": "fr",
+        "title": "NEXUS OF TORMENT"
+      }
+    },
+    {
+      "name": "Document français titré",
+      "passed": true,
+      "details": {
+        "classes": 3,
+        "difficulties": 4,
+        "modes": 2,
+        "sectors": 3,
+        "lang": "fr",
+        "title": "NEXUS OF TORMENT"
+      }
+    },
+    {
+      "name": "Accessibilité appliquée et focus contenu",
+      "passed": true,
+      "details": {
+        "motion": true,
+        "ui": true,
+        "enemy": true,
+        "subtitles": true,
+        "focus": true
+      }
+    },
+    {
+      "name": "Pointeur verrouillé ou reprise explicite affichée",
+      "passed": true,
+      "details": {
+        "locked": true,
+        "prompt": false,
+        "state": "playing"
+      }
+    },
+    {
+      "name": "Run desktop lancé via UI",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 1,
+        "mode": "campaign",
+        "sector": "nave",
+        "difficulty": "red",
+        "cameraYaw": 0,
+        "webgl2": true,
+        "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "renderScale": 1,
+        "buffer": "1280x720",
+        "fallbackHidden": true,
+        "drawCalls": 284,
+        "triangles": 8800,
+        "enemies": 4,
+        "queued": 7
+      }
+    },
+    {
+      "name": "Rendu de combat actif",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 1,
+        "mode": "campaign",
+        "sector": "nave",
+        "difficulty": "red",
+        "cameraYaw": 0,
+        "webgl2": true,
+        "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "renderScale": 1,
+        "buffer": "1280x720",
+        "fallbackHidden": true,
+        "drawCalls": 284,
+        "triangles": 8800,
+        "enemies": 4,
+        "queued": 7
+      }
+    },
+    {
+      "name": "Cadence jouable à 1280x720 sur trois échantillons",
+      "passed": true,
+      "details": {
+        "median": 60,
+        "samples": [
+          60,
+          60,
+          60
+        ],
+        "thresholds": {
+          "median": 30,
+          "minimum": 24
+        }
+      }
+    },
+    {
+      "name": "Quatre difficultés instanciées",
+      "passed": true,
+      "details": [
+        {
+          "id": "containment",
+          "health": 67,
+          "damage": 0.75,
+          "count": 8
+        },
+        {
+          "id": "unstable",
+          "health": 82,
+          "damage": 1,
+          "count": 9
+        },
+        {
+          "id": "red",
+          "health": 100,
+          "damage": 1.25,
+          "count": 11
+        },
+        {
+          "id": "nexus",
+          "health": 125,
+          "damage": 1.5,
+          "count": 12
+        }
+      ]
+    },
+    {
+      "name": "Santé et dégâts croissent avec la difficulté",
+      "passed": true,
+      "details": [
+        {
+          "id": "containment",
+          "health": 67,
+          "damage": 0.75,
+          "count": 8
+        },
+        {
+          "id": "unstable",
+          "health": 82,
+          "damage": 1,
+          "count": 9
+        },
+        {
+          "id": "red",
+          "health": 100,
+          "damage": 1.25,
+          "count": 11
+        },
+        {
+          "id": "nexus",
+          "health": 125,
+          "damage": 1.5,
+          "count": 12
+        }
+      ]
+    },
+    {
+      "name": "Trois secteurs instanciés avec départs distincts",
+      "passed": true,
+      "details": [
+        {
+          "id": "sanctum",
+          "start": [
+            0,
+            0,
+            17
+          ]
+        },
+        {
+          "id": "nave",
+          "start": [
+            0,
+            0,
+            25
+          ]
+        },
+        {
+          "id": "ossuary",
+          "start": [
+            0,
+            0,
+            20
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Boss dédiés aux offices 5 et 10",
+      "passed": true,
+      "details": [
+        {
+          "wave": 5,
+          "type": "gatekeeper",
+          "alive": true,
+          "objective": "boss"
+        },
+        {
+          "wave": 10,
+          "type": "archdeacon",
+          "alive": true,
+          "objective": "boss"
+        }
+      ]
+    },
+    {
+      "name": "Checkpoint écrit",
+      "passed": true,
+      "details": {
+        "saved": true,
+        "next": 4
+      }
+    },
+    {
+      "name": "Bouton continuer après rechargement",
+      "passed": true
+    },
+    {
+      "name": "Reprise restaure le run",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 3,
+        "sector": "ossuary",
+        "difficulty": "nexus",
+        "score": 4321,
+        "health": 61,
+        "essence": 777,
+        "kills": 19,
+        "intermission": true
+      }
+    },
+    {
+      "name": "Mort finalisée sur résultats",
+      "passed": true,
+      "details": {
+        "state": "gameover",
+        "screen": true,
+        "active": null
+      }
+    },
+    {
+      "name": "Nouvelle tentative après mort",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 1,
+        "mode": "campaign",
+        "sector": "sanctum",
+        "difficulty": "unstable",
+        "cameraYaw": 0,
+        "webgl2": true,
+        "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "renderScale": 1,
+        "buffer": "1280x720",
+        "fallbackHidden": true,
+        "drawCalls": 220,
+        "triangles": 6404,
+        "enemies": 0,
+        "queued": 9
+      }
+    },
+    {
+      "name": "Boss final, extraction et victoire",
+      "passed": true,
+      "details": {
+        "state": "victory",
+        "bossKills": 1,
+        "finalized": true,
+        "screen": true,
+        "active": null
+      }
+    },
+    {
+      "name": "Victoire prolongeable en survie infinie propre",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "mode": "endless",
+        "intermission": true,
+        "finalized": false,
+        "hostiles": 0,
+        "projectiles": 0,
+        "hazards": 0
+      }
+    },
+    {
+      "name": "Service worker et cache installés",
+      "passed": true,
+      "details": {
+        "scope": "http://127.0.0.1:64298/",
+        "controlled": true,
+        "caches": [
+          "nexus-of-torment-v1.2.0"
+        ]
+      }
+    },
+    {
+      "name": "PWA redémarre hors-ligne",
+      "passed": true,
+      "details": {
+        "state": "menu",
+        "wave": 0,
+        "mode": "campaign",
+        "sector": "sanctum",
+        "difficulty": "unstable",
+        "cameraYaw": -0.30845242401682316,
+        "webgl2": true,
+        "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "renderScale": 1,
+        "buffer": "1280x720",
+        "fallbackHidden": true,
+        "drawCalls": 243,
+        "triangles": 7816,
+        "enemies": 0,
+        "queued": 0
+      }
+    },
+    {
+      "name": "Cache-miss hors-ligne répond proprement en 503",
+      "passed": true,
+      "details": {
+        "status": 503,
+        "text": "Ressource indisponible hors ligne."
+      }
+    },
+    {
+      "name": "Build dist disponible pour le navigateur",
+      "passed": true,
+      "details": "C:\\Users\\chuck\\Documents\\Codex\\2026-08-25\\ajoute-dans-chaque-github-qui-n\\games\\nexus-of-torment\\dist"
+    },
+    {
+      "name": "Chargement HTTP mobile",
+      "passed": true,
+      "details": 200
+    },
+    {
+      "name": "Menu mobile sans débordement",
+      "passed": true,
+      "details": {
+        "touch": true,
+        "width": 390,
+        "scroll": 390,
+        "sectors": 3
+      }
+    },
+    {
+      "name": "Run tactile lancé via UI",
+      "passed": true,
+      "details": {
+        "state": "playing",
+        "wave": 1,
+        "mode": "endless",
+        "sector": "ossuary",
+        "difficulty": "nexus",
+        "cameraYaw": 0,
+        "webgl2": true,
+        "gpuRenderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "renderScale": 1,
+        "buffer": "682x1477",
+        "fallbackHidden": true,
+        "drawCalls": 236,
+        "triangles": 7408,
+        "enemies": 0,
+        "queued": 12
+      }
+    },
+    {
+      "name": "Cible FEU au moins 44 px",
+      "passed": true,
+      "details": {
+        "x": 292,
+        "y": 744,
+        "width": 76,
+        "height": 76
+      }
+    },
+    {
+      "name": "FEU tactile pilote le système d’arme",
+      "passed": true,
+      "details": {
+        "before": 0,
+        "after": 3,
+        "held": true
+      }
+    },
+    {
+      "name": "Stick tactile disponible",
+      "passed": true,
+      "details": {
+        "x": 22,
+        "y": 704,
+        "width": 112,
+        "height": 112
+      }
+    },
+    {
+      "name": "Stick tactile transmet le déplacement",
+      "passed": true,
+      "details": true
+    },
+    {
+      "name": "Pause tactile opérationnelle",
+      "passed": true
+    },
+    {
+      "name": "Console et runtime sans erreur",
+      "passed": true,
+      "details": []
+    }
+  ],
+  "failures": [],
+  "evidence": {
+    "desktopMenu": "docs/screenshots/v1.2-desktop-menu.png",
+    "desktopGameplay": "docs/screenshots/v1.2-desktop-gameplay.png",
+    "mobileGameplay": "docs/screenshots/v1.2-mobile-gameplay.png"
+  },
+  "performance": {
+    "viewport": "1280x720",
+    "averageFps": 60,
+    "drawCalls": 284,
+    "triangles": 8800,
+    "samples": [
+      60,
+      60,
+      60
+    ],
+    "renderer": "ANGLE (AMD, AMD Radeon RX 6800 XT (0x000073BF) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "renderScale": 1,
+    "buffer": "1280x720"
+  },
+  "runtimeErrors": [],
+  "expectedOfflineSignals": [
+    {
+      "type": "console",
+      "message": "Failed to load resource: the server responded with a status of 503 ()",
+      "expectedOffline": true
+    }
+  ],
+  "summary": {
+    "passed": 35,
+    "failed": 0
+  }
+}

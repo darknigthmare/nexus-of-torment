@@ -225,5 +225,108 @@
     armory: { id:'armory', name:'DÉVERROUILLER L’ARME', cost:0, cooldown:0, instances:4, description:'Ajoute l’arme au cycle de sélection.' }
   };
 
-  NT.Data = { COLORS, CLASSES, DIFFICULTIES, WEAPONS, ENEMIES, WAVE_MODIFIERS, UPGRADES, META_UPGRADES, STATIONS };
+  // Plans sérialisables : Arena reconstruit chaque secteur sans partager d'état mutable.
+  // geometry: [mesh, material, x, y, z, sx, sy, sz, collider?, tag?]
+  // cover: [x, y, z, sx, sy, sz, material] ; pillars: [x, z, ringMaterial]
+  // stations: [id, type, x, z, material, weapon?]
+  const SECTORS = {
+    sanctum: {
+      id:'sanctum', name:'Sanctuaire de Fer',
+      description:'Le nœud originel, un autel mécanique encerclé de cages et de reliquaires industriels.',
+      objectiveAccent:'ritual', startPosition:[0,0,17],
+      objectiveAnchors:{ hold:[0,0,-7], extraction:[0,0,18] },
+      bounds:{ minX:-24.7,maxX:24.7,minZ:-24.7,maxZ:24.7 },
+      floor:{ width:52,depth:52,grooveStep:5,sigilStep:10 },
+      gate:{ position:[0,3.8,-7],outer:10.2,middle:7.9,inner:5.8,disc:7.8 },
+      geometry:[
+        ['cylinder12','wallDark',0,.3,-7,10,.6,10,true,'dais'],
+        ['cylinder12','rust',0,.66,-7,7.7,.16,7.7,false,'dais-ring'],
+        ['cube','wallDark',-4.9,3.2,-7,1.25,6.5,2.1,true,'gate-pillar'],
+        ['cube','wallDark',4.9,3.2,-7,1.25,6.5,2.1,true,'gate-pillar'],
+        ['cube','rust',-20,.25,17,5,.5,5,true,'cage-base'],
+        ['cube','rust',20,.25,17,5,.5,5,true,'cage-base']
+      ],
+      cover:[
+        [-8,1,7,4,2,1.4,'fleshDark'],[8,1,7,4,2,1.4,'rust'],[-8,1,-17,4,2,1.4,'rust'],[8,1,-17,4,2,1.4,'fleshDark'],
+        [-18,1,-8,1.4,2,4,'rust'],[18,1,-8,1.4,2,4,'rust'],[-18,1,9,1.4,2,4,'fleshDark'],[18,1,9,1.4,2,4,'rust'],
+        [-5,.8,17,3,1.6,2.1,'rust'],[5,.8,17,3,1.6,2.1,'fleshDark']
+      ],
+      pillars:[[-13,-13,'ritual'],[13,-13,'rust'],[-13,13,'rust'],[13,13,'ritual'],[-17,0,'rust'],[17,0,'ritual'],[0,16,'rust']],
+      stations:[
+        ['shock','shock',0,2.2,'cyan'],['ammo','ammo',-9,2,'amber'],['med','med',9,2,'ritual'],
+        ['armory-smg','armory',-9,-11.5,'portal','smg'],['armory-nailgun','armory',9,-11.5,'cyan','nailgun'],
+        ['armory-chainlance','armory',-14.5,-4,'portal','chainlance'],['armory-exorcist','armory',14.5,-4,'cyan','exorcist']
+      ],
+      spawns:[[-22,-21],[-14,-22],[-5,-22],[5,-22],[14,-22],[22,-21],[-22,-12],[-22,-3],[-22,7],[-22,15],[-21,22],[22,-12],[22,-3],[22,7],[22,15],[21,22],[-14,22],[-5,22],[5,22],[14,22]]
+    },
+    nave: {
+      id:'nave', name:'Nef des Sutures',
+      description:'Une nef axiale scandée de piliers-côtes et de couvertures latérales qui imposent des tirs croisés.',
+      objectiveAccent:'amber', startPosition:[0,0,25],
+      objectiveAnchors:{ hold:[0,0,-23], extraction:[0,0,24] },
+      bounds:{ minX:-19.7,maxX:19.7,minZ:-30.7,maxZ:30.7 },
+      floor:{ width:42,depth:64,grooveStep:5,sigilStep:10 },
+      gate:{ position:[0,3.8,-25],outer:11.2,middle:8.7,inner:6.2,disc:8.6 },
+      geometry:[
+        ['cube','floorAlt',0,.12,-25,17,.24,10,false,'chancel'],
+        ['cube','ritual',0,.27,-25,15,.04,.18,false,'axial-sigil'],
+        ['cube','wallDark',-6,3.2,-25,1.35,6.6,2.2,true,'gate-pillar'],
+        ['cube','wallDark',6,3.2,-25,1.35,6.6,2.2,true,'gate-pillar'],
+        ['cube','wallDark',-14.5,2.1,-14,1.2,4.2,8,true,'side-chapel'],
+        ['cube','wallDark',14.5,2.1,-14,1.2,4.2,8,true,'side-chapel'],
+        ['cube','wallDark',-14.5,2.1,14,1.2,4.2,8,true,'side-chapel'],
+        ['cube','wallDark',14.5,2.1,14,1.2,4.2,8,true,'side-chapel'],
+        ['cube','rust',0,6,-14,28,.55,.8,false,'rib-arch'],
+        ['cube','rust',0,6,0,28,.55,.8,false,'rib-arch'],
+        ['cube','rust',0,6,14,28,.55,.8,false,'rib-arch']
+      ],
+      cover:[
+        [-6.5,1,21,4.8,2,1.25,'rust'],[6.5,1,21,4.8,2,1.25,'fleshDark'],[-8.5,1,11,5.2,2,1.25,'steel'],[8.5,1,11,5.2,2,1.25,'rust'],
+        [-6.5,1,1,4.8,2,1.25,'fleshDark'],[6.5,1,1,4.8,2,1.25,'rust'],[-8.5,1,-9,5.2,2,1.25,'rust'],[8.5,1,-9,5.2,2,1.25,'steel'],
+        [-6.5,1,-19,4.8,2,1.25,'rust'],[6.5,1,-19,4.8,2,1.25,'fleshDark']
+      ],
+      pillars:[[-11,-24,'amber'],[11,-24,'ritual'],[-11,-12,'rust'],[11,-12,'amber'],[-11,0,'amber'],[11,0,'rust'],[-11,12,'rust'],[11,12,'amber'],[-11,24,'amber'],[11,24,'ritual']],
+      stations:[
+        ['shock','shock',0,-2,'cyan'],['ammo','ammo',-17,24,'amber'],['med','med',17,24,'ritual'],
+        ['armory-smg','armory',-17,-22,'portal','smg'],['armory-nailgun','armory',17,-22,'cyan','nailgun'],
+        ['armory-chainlance','armory',-17,5,'portal','chainlance'],['armory-exorcist','armory',17,-5,'cyan','exorcist']
+      ],
+      spawns:[[-18,-29],[-9,-29],[0,-29],[9,-29],[18,-29],[-18.2,-20],[-18.2,-10],[-18.2,0],[-18.2,10],[-18.2,20],[18.2,-20],[18.2,-10],[18.2,0],[18.2,10],[18.2,20],[-18,29],[-9,29],[0,29],[9,29],[18,29]]
+    },
+    ossuary: {
+      id:'ossuary', name:'Ossuaire des Crochets',
+      description:'Un anneau funéraire lacéré par deux croisements, refermant les lignes de fuite autour d’un charnier conducteur.',
+      objectiveAccent:'cyan', startPosition:[0,0,20],
+      objectiveAnchors:{ hold:[0,0,0], extraction:[0,0,20] },
+      bounds:{ minX:-26.7,maxX:26.7,minZ:-26.7,maxZ:26.7 },
+      floor:{ width:56,depth:56,grooveStep:7,sigilStep:14 },
+      gate:{ position:[0,3.8,-21],outer:9.6,middle:7.4,inner:5.3,disc:7.2 },
+      geometry:[
+        ['cylinder12','floorAlt',0,.16,0,15,.32,15,false,'ossuary-ring'],
+        ['torus','cyan',0,.34,0,15.2,15.2,15.2,false,'ossuary-ring'],
+        ['cube','floorAlt',0,.04,0,50,.08,3.2,false,'crossing'],
+        ['cube','floorAlt',0,.045,0,3.2,.09,50,false,'crossing'],
+        ['cube','wallDark',-4.8,3.1,-21,1.2,6.3,2,true,'gate-pillar'],
+        ['cube','wallDark',4.8,3.1,-21,1.2,6.3,2,true,'gate-pillar'],
+        ['cylinder8','fleshDark',-18,.5,-18,5,1,5,true,'bone-vault'],
+        ['cylinder8','fleshDark',18,.5,-18,5,1,5,true,'bone-vault'],
+        ['cylinder8','fleshDark',-18,.5,18,5,1,5,true,'bone-vault'],
+        ['cylinder8','fleshDark',18,.5,18,5,1,5,true,'bone-vault']
+      ],
+      cover:[
+        [-7,1,0,4,2.2,1.2,'bone'],[7,1,0,4,2.2,1.2,'bone'],[0,1,-7,1.2,2.2,4,'rust'],[0,1,7,1.2,2.2,4,'rust'],
+        [-14,1,-7,5,2,1.2,'fleshDark'],[14,1,7,5,2,1.2,'fleshDark'],[-7,1,14,1.2,2,5,'rust'],[7,1,-14,1.2,2,5,'rust'],
+        [-20,.8,0,2.5,1.6,3.5,'steel'],[20,.8,0,2.5,1.6,3.5,'steel']
+      ],
+      pillars:[[11,0,'cyan'],[7.8,7.8,'rust'],[0,11,'cyan'],[-7.8,7.8,'ritual'],[-11,0,'cyan'],[-7.8,-7.8,'rust'],[0,-11,'cyan'],[7.8,-7.8,'ritual'],[-21,-10,'rust'],[21,10,'cyan']],
+      stations:[
+        ['shock','shock',0,0,'cyan'],['ammo','ammo',-22,18,'amber'],['med','med',22,18,'ritual'],
+        ['armory-smg','armory',-18,-22,'portal','smg'],['armory-nailgun','armory',18,-22,'cyan','nailgun'],
+        ['armory-chainlance','armory',-22,-4,'portal','chainlance'],['armory-exorcist','armory',22,4,'cyan','exorcist']
+      ],
+      spawns:[[-24,-24],[-14,-25],[-5,-25],[5,-25],[14,-25],[24,-24],[-25,-14],[-25,-5],[-25,5],[-25,14],[-24,24],[25,-14],[25,-5],[25,5],[25,14],[24,24],[-14,25],[-5,25],[5,25],[14,25],[-18,-10],[18,10],[-10,18],[10,-18]]
+    }
+  };
+
+  NT.Data = { COLORS, CLASSES, DIFFICULTIES, WEAPONS, ENEMIES, WAVE_MODIFIERS, UPGRADES, META_UPGRADES, STATIONS, SECTORS };
 })();

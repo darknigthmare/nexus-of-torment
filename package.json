@@ -1,15 +1,25 @@
 {
   "name": "nexus-of-torment",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
-  "description": "FPS 3D horde horror autonome en WebGL2.",
+  "description": "Survival-horror d'action 3D autonome en WebGL2.",
   "scripts": {
     "start": "node server.mjs",
     "check": "node tools/check.mjs",
     "audit": "node tools/audit.mjs",
+    "audit:release": "node tools/audit.mjs --release",
+    "build": "node tools/build.mjs",
+    "qa": "npm test && npm run build",
+    "qa:browser": "node tools/browser-qa.mjs",
+    "qa:release": "npm run qa && npm run qa:browser && npm run audit:release",
+    "manifest": "node tools/manifest.mjs",
+    "manifest:check": "node tools/manifest.mjs --check",
     "test": "npm run check && npm run audit && npm run runtime-smoke && npm run http-smoke",
     "runtime-smoke": "node tools/runtime-smoke.mjs",
     "http-smoke": "node tools/http-smoke.mjs"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "playwright-core": "^1.55.0"
+  }
 }

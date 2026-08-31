@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Nexus of Torment</title>
+  <desc id="desc">Sceau original du Nœud 07, formé d’un portail nerveux rouge dans une armature sombre.</desc>
+  <rect width="512" height="512" rx="104" fill="#090608"/>
+  <circle cx="256" cy="256" r="166" fill="#120b0e" stroke="#553039" stroke-width="18"/>
+  <path d="M256 82 359 138 406 255 357 374 256 430 153 374 106 255 155 138Z" fill="none" stroke="#8f252f" stroke-width="22" stroke-linejoin="round"/>
+  <path d="M256 126 319 171 343 248 314 337 256 386 198 337 169 248 193 171Z" fill="#250d13" stroke="#e0444a" stroke-width="14"/>
+  <path d="M211 338V174h28l61 93v-93h29v164h-28l-61-93v93Z" fill="#f1d9d1"/>
+  <circle cx="256" cy="256" r="22" fill="#e0444a"/>
+  <path d="M256 104v46M408 256h-46M256 408v-46M104 256h46" stroke="#d49a62" stroke-width="14" stroke-linecap="round"/>
+</svg>

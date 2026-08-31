@@ -160,13 +160,15 @@
 
       const horizontalSpeed = Math.hypot(this.velocity.x,this.velocity.z);
       if (this.grounded && moving) this.bobTime += dt * (sprinting ? 12.5 : 8.5) * clamp(horizontalSpeed / 4.5,.25,1.5);
-      this.bobAmount = damp(this.bobAmount, this.grounded && moving && settings.headBob ? (sprinting ? 1 : .68) : 0, 10, dt);
+      this.bobAmount = damp(this.bobAmount, this.grounded && moving && settings.headBob && !settings.reducedMotion ? (sprinting ? 1 : .68) : 0, 10, dt);
       this.landKick = damp(this.landKick,0,9,dt);
       this.recoilPitch = damp(this.recoilPitch,0,15,dt);
       this.recoilYaw = damp(this.recoilYaw,0,18,dt);
       this.cameraShakeTime = Math.max(0,this.cameraShakeTime-dt);
       this.cameraShake = damp(this.cameraShake,0,10,dt);
-      const shakeScale = settings.reducedFlashes ? .45 : 1;
+      const shakeScale = (settings.reducedFlashes ? .45 : 1)
+        * clamp(Number(settings.shakeIntensity ?? 1), 0, 1)
+        * (settings.reducedMotion ? .35 : 1);
       const randomShake = this.cameraShakeTime > 0 ? this.cameraShake * shakeScale : 0;
       const bobX = Math.sin(this.bobTime) * .035 * this.bobAmount;
       const bobY = Math.abs(Math.cos(this.bobTime)) * .048 * this.bobAmount;
@@ -179,7 +181,7 @@
       this.camera.pitch += this.recoilPitch * dt;
       this.camera.yaw += this.recoilYaw * dt;
 
-      if (input.consume('KeyQ')) this.useAbility();
+      if (input.consume('KeyC')) this.useAbility();
       if (this.corruption > .72 && chance(dt * (this.corruption-.68)*.45)) game.spawnHallucination();
       if (!game.waveActive) this.corruption = Math.max(0,this.corruption-dt*.012);
     }
@@ -203,7 +205,7 @@
       } else {
         this.abilityActive = this.classData.abilityDuration;
         const power = 155 + this.corruption * 220;
-        this.game.applyRadialDamage(this.position,10,power,{source:'ability',stun:2.2,falloff:.48});
+        this.game.applyRadialDamage(this.position,10,power,{source:'ability',stun:2.2,falloff:.48,ignoreCover:true});
         this.corruption = Math.max(0,this.corruption-.42);
         this.heal(18);
         this.game.spawnAbilityRing(this.position,0xc95891,10);
@@ -446,6 +448,8 @@
       this.alive=true;
       this.elite=Boolean(options.elite);
       this.boss=Boolean(this.config.boss);
+      this.objectiveMarked=Boolean(options.marked);
+      this.summonedByBoss=Boolean(options.summonedByBoss);
       this.wave=game.wave;
       const scaleHealth=1+Math.max(0,game.wave-1)*.085+(this.boss?Math.max(0,game.wave-5)*.06:0);
       const eliteHealth=this.elite?(game.currentModifier?.eliteHealth||1)*1.45:1;
@@ -470,6 +474,9 @@
       this.burnTimer=0;
       this.burnDps=0;
       this.burnTick=.25;
+      this.watchdogTimer=0;
+      this.stuckTimer=0;
+      this.watchdogPosition=this.position.clone();
     }
 
     update(dt) {
@@ -676,8 +683,13 @@
         this.game.ui.announce('PHASE DU GARDIEN',phase===2?'LES CHAÎNES S’ÉVEILLENT':'LA COURONNE SE BRISE',phase===2?'Le Nexus réclame des renforts.':'Le Gardien entre en frénésie.',2.5);
         this.game.spawnAbilityRing(this.position,0xf02f3a,12);
         this.game.audio.boss();
-        if(phase===2)this.game.spawnEnemy('hookbearer',null,{elite:true});
-        if(phase===3){this.game.spawnEnemy('twin');this.game.spawnEnemy('twin');}
+        if(phase===2){
+          if(this.game.spawnBossAdd)this.game.spawnBossAdd('hookbearer',this,{elite:true});else this.game.spawnEnemy('hookbearer',null,{elite:true});
+        }
+        if(phase===3){
+          if(this.game.spawnBossAdd){this.game.spawnBossAdd('twin',this);this.game.spawnBossAdd('twin',this);}
+          else {this.game.spawnEnemy('twin');this.game.spawnEnemy('twin');}
+        }
       }
       this.summonTimer-=dt;
       if(this.state==='slamWindup'){
@@ -701,7 +713,10 @@
       if(this.bossPhase>=2 && this.summonTimer<=0){
         this.summonTimer=this.bossPhase===3?7:10;
         const count=this.bossPhase===3?3:2;
-        for(let i=0;i<count;i++)this.game.spawnEnemy(pick(this.bossPhase===3?['sutured','hookbearer','cherub','twin']:['sutured','hookbearer','cherub']));
+        for(let i=0;i<count;i++){
+          const type=pick(this.bossPhase===3?['sutured','hookbearer','cherub','twin']:['sutured','hookbearer','cherub']);
+          if(this.game.spawnBossAdd)this.game.spawnBossAdd(type,this);else this.game.spawnEnemy(type);
+        }
       }
     }
     _updateArchdeacon(dt,dir,distance,speed){
@@ -712,8 +727,14 @@
         this.game.ui.announce('LITURGIE NERVEUSE',phase===2?'LE RÉSEAU SE DÉPLOIE':'L’ARCHIDIACRE SE DÉCHAÎNE',phase===2?'Des relais psychiques franchissent le voile.':'Les nerfs du Nexus ciblent toute l’arène.',2.7);
         this.game.spawnAbilityRing(this.position,0xdf55a7,13);
         this.game.audio.boss();
-        if(phase===2){this.game.spawnEnemy('choir');this.game.spawnEnemy('flayed',null,{elite:true});}
-        if(phase===3){this.game.spawnEnemy('twin');this.game.spawnEnemy('confessor',null,{elite:true});}
+        if(phase===2){
+          if(this.game.spawnBossAdd){this.game.spawnBossAdd('choir',this);this.game.spawnBossAdd('flayed',this,{elite:true});}
+          else {this.game.spawnEnemy('choir');this.game.spawnEnemy('flayed',null,{elite:true});}
+        }
+        if(phase===3){
+          if(this.game.spawnBossAdd){this.game.spawnBossAdd('twin',this);this.game.spawnBossAdd('confessor',this,{elite:true});}
+          else {this.game.spawnEnemy('twin');this.game.spawnEnemy('confessor',null,{elite:true});}
+        }
       }
       this.position.y=damp(this.position.y,4.8+Math.sin(this.age*1.15)*.65,2.1,dt);
       const tangent=_vB.set(-dir.z,0,dir.x).scale(phase===3?1.1:.75);
@@ -754,7 +775,10 @@
       if(phase>=2&&this.summonTimer<=0){
         this.summonTimer=phase===3?8.5:12;
         const pool=phase===3?['sutured','cherub','flayed','twin']:['sutured','cherub','confessor'];
-        for(let i=0;i<phase;i++)this.game.spawnEnemy(pick(pool));
+        for(let i=0;i<phase;i++){
+          const type=pick(pool);
+          if(this.game.spawnBossAdd)this.game.spawnBossAdd(type,this);else this.game.spawnEnemy(type);
+        }
       }
     }
 
@@ -834,6 +858,11 @@
         const ring=new Transform(new Vec3(this.position.x,(this.config.flying?this.position.y:0)+.05,this.position.z),new Vec3(0,time*.8,0),new Vec3(this.radius*3.4,1,this.radius*3.4));
         ring.updateMatrix();renderer.draw(renderer.meshes.torusLow,ring.matrix,this.materials.ritual);
       }
+      if(this.objectiveMarked){
+        const markerY=(this.config.flying?this.position.y:this.height)+.8+Math.sin(time*3+this.phase)*.12;
+        const marker=new Transform(new Vec3(this.position.x,markerY,this.position.z),new Vec3(Math.PI/2,time*1.4,0),new Vec3(this.radius*2.5,this.radius*2.5,this.radius*2.5));
+        marker.updateMatrix();renderer.draw(renderer.meshes.torusLow,marker.matrix,this.materials.ritual);
+      }
     }
   }
 
@@ -875,8 +904,23 @@
       }
       if(this.type==='grenade'){
         if(this.position.y<=.12){this.position.y=.12;if(this.velocity.y<0){this.velocity.y=-this.velocity.y*.55;this.velocity.x*=.82;this.velocity.z*=.82;}}
-        const hit=this.game.arena.raycastWorld(this.previous,_vA.copy(this.position).sub(this.previous).normalize(),this.previous.distanceTo(this.position));
-        if(hit.hit&&this.bounces>0){this.velocity.x*=-.65;this.velocity.z*=-.65;this.bounces--;}
+        const travel=_vA.copy(this.position).sub(this.previous),distance=travel.length();
+        if(distance>.0001){
+          const direction=travel.scale(1/distance);
+          const hit=this.game.arena.raycastWorld(this.previous,direction,distance+this.radius);
+          if(hit.hit){
+            this.position.copy(this.previous).addScaled(direction,Math.max(0,hit.distance-this.radius*.5));
+            if(this.bounces>0){
+              const normal=grenadeImpactNormal(hit.collider,this.position,_vB);
+              const dot=this.velocity.dot(normal);
+              this.velocity.addScaled(normal,-2*dot).scale(.62);
+              this.bounces--;
+            }else{
+              this.velocity.set(0,0,0);
+              this.fuse=Math.min(this.fuse??.3,.3);
+            }
+          }
+        }
         return;
       }
       const travel=_vA.copy(this.position).sub(this.previous),distance=travel.length();
@@ -940,6 +984,17 @@
       this.ring.position.set(this.position.x,.045,this.position.z);this.ring.rotation.set(0,time,0);this.ring.scale.set(1.15,1.15,1.15);this.ring.updateMatrix();
       renderer.draw(renderer.meshes.torusLow,this.ring.matrix,this.material);
     }
+  }
+
+  function grenadeImpactNormal(collider,point,out){
+    if(!collider?.min||!collider?.max)return out.set(0,0,-1);
+    let best=Math.abs(point.x-collider.min.x);out.set(-1,0,0);
+    let value=Math.abs(collider.max.x-point.x);if(value<best){best=value;out.set(1,0,0);}
+    value=Math.abs(point.y-collider.min.y);if(value<best){best=value;out.set(0,-1,0);}
+    value=Math.abs(collider.max.y-point.y);if(value<best){best=value;out.set(0,1,0);}
+    value=Math.abs(point.z-collider.min.z);if(value<best){best=value;out.set(0,0,-1);}
+    value=Math.abs(collider.max.z-point.z);if(value<best)out.set(0,0,1);
+    return out;
   }
 
   const _vA=new Vec3(),_vB=new Vec3(),_vC=new Vec3(),_vD=new Vec3();

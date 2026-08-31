@@ -3,20 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 fill=%22%23070709%22/><path d=%22M14 52V12h8l20 25V12h8v40h-8L22 27v25z%22 fill=%22%23d72d3d%22/></svg>">
+  <link rel="icon" href="icons/nexus-icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="application-name" content="Nexus of Torment">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#090608">
-  <meta name="description" content="Nexus of Torment, FPS 3D horde horror autonome en WebGL2.">
+  <meta name="description" content="Nexus of Torment, survival-horror d’action original en WebGL2.">
   <title>NEXUS OF TORMENT</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <canvas id="game-canvas" aria-label="Rendu 3D de Nexus of Torment"></canvas>
-  <div id="webgl-fallback" class="screen hidden">
-    <div class="panel compact">
-      <div class="eyebrow">ERREUR DE CONFINEMENT</div>
-      <h1>WebGL2 indisponible</h1>
-      <p>Le jeu nécessite un navigateur récent avec l’accélération graphique activée.</p>
-    </div>
+  <canvas id="game-canvas" aria-label="Rendu 3D interactif de Nexus of Torment"></canvas>
+  <div id="webgl-fallback" class="screen hidden" role="alert">
+    <div class="panel compact"><div class="eyebrow">ERREUR DE CONFINEMENT</div><h1>WebGL2 indisponible</h1><p>Le jeu nécessite un navigateur récent avec l’accélération graphique activée.</p></div>
   </div>
 
   <div id="scanlines" aria-hidden="true"></div>
@@ -25,235 +26,117 @@
   <div id="corruption-overlay" aria-hidden="true"></div>
 
   <main id="ui-root">
-    <section id="main-menu" class="screen menu-screen">
+    <section id="main-menu" class="screen menu-screen" aria-labelledby="game-title">
       <div class="menu-shell">
         <header class="brand-block">
           <div class="eyebrow">PROTOCOLE DE CONFINEMENT // NŒUD 07</div>
-          <h1>NEXUS<br><span>OF TORMENT</span></h1>
+          <h1 id="game-title">NEXUS<br><span>OF TORMENT</span></h1>
           <p class="tagline">Chaque vague ouvre un peu plus la porte.</p>
         </header>
 
         <div class="menu-grid">
           <div class="panel loadout-panel">
             <div class="panel-title-row">
-              <div>
-                <div class="eyebrow">OPÉRATEUR</div>
-                <h2>Choisir une doctrine</h2>
-              </div>
+              <div><div class="eyebrow">OPÉRATEUR</div><h2>Choisir une doctrine</h2></div>
               <div id="meta-shards" class="currency-chip" title="Fragments persistants">◆ 0</div>
             </div>
+
             <div id="class-selector" class="class-selector" role="radiogroup" aria-label="Classe">
-              <button class="class-card selected" data-class="bulwark" role="radio" aria-checked="true">
-                <span class="class-icon">▰</span>
-                <span class="class-copy"><strong>Rempart</strong><small>Armure lourde · Égide cinétique</small></span>
-              </button>
-              <button class="class-card" data-class="executioner" role="radio" aria-checked="false">
-                <span class="class-icon">✣</span>
-                <span class="class-copy"><strong>Exécuteur</strong><small>Dégâts · Frénésie balistique</small></span>
-              </button>
-              <button class="class-card" data-class="occultist" role="radio" aria-checked="false">
-                <span class="class-icon">◈</span>
-                <span class="class-copy"><strong>Occultiste</strong><small>Souillure · Nova d’exorcisme</small></span>
-              </button>
+              <button class="class-card selected" data-class="bulwark" role="radio" aria-checked="true" tabindex="0"><span class="class-icon">▰</span><span class="class-copy"><strong>Rempart</strong><small>Armure lourde · Égide cinétique</small></span></button>
+              <button class="class-card" data-class="executioner" role="radio" aria-checked="false" tabindex="-1"><span class="class-icon">✣</span><span class="class-copy"><strong>Exécuteur</strong><small>Dégâts · Frénésie balistique</small></span></button>
+              <button class="class-card" data-class="occultist" role="radio" aria-checked="false" tabindex="-1"><span class="class-icon">◈</span><span class="class-copy"><strong>Occultiste</strong><small>Souillure · Nova d’exorcisme</small></span></button>
             </div>
 
-            <div class="difficulty-row">
-              <label for="difficulty">Niveau de brèche</label>
-              <select id="difficulty">
-                <option value="containment">Confinement local</option>
-                <option value="unstable" selected>Brèche instable</option>
-                <option value="red">Liturgie rouge</option>
-                <option value="nexus">Nexus ouvert</option>
-              </select>
+            <div class="run-config-grid">
+              <label><span>Mode d’intervention</span><select id="mode"><option value="campaign" selected>Campagne — Liturgie nerveuse</option><option value="endless">Survie sans fin</option></select></label>
+              <label><span>Secteur d’entrée</span><select id="sector"><option value="">Synchronisation…</option></select></label>
+              <label><span>Niveau de brèche</span><select id="difficulty"><option value="containment">Confinement local</option><option value="unstable" selected>Brèche instable</option><option value="red">Liturgie rouge</option><option value="nexus">Nexus ouvert</option></select></label>
             </div>
 
-            <button id="start-button" class="primary-button huge">
-              <span>ENTRER DANS LE NEXUS</span>
-              <small>Cliquer puis verrouiller le pointeur</small>
-            </button>
+            <button id="start-button" class="primary-button huge"><span>ENTRER DANS LE NEXUS</span><small>Clavier-souris ou commandes tactiles</small></button>
+            <button id="continue-button" class="secondary-button continue-button hidden">REPRENDRE LE DERNIER PROTOCOLE</button>
           </div>
 
           <aside class="panel dossier-panel">
-            <div class="eyebrow">DOSSIER D’INTERVENTION</div>
-            <h2>Horde FPS 3D</h2>
+            <div class="eyebrow">DOSSIER D’INTERVENTION</div><h2>Survival-horror d’action</h2>
             <ul class="feature-list">
-              <li><b>Vagues évolutives</b><span>Castes, élites, modificateurs et boss.</span></li>
-              <li><b>Arsenal rituel</b><span>6 armes, mêlée, grenade, capacités et pièges.</span></li>
-              <li><b>Progression roguelite</b><span>Perks de run et améliorations persistantes.</span></li>
-              <li><b>Codex vivant</b><span>Bestiaire, statistiques et archives déblocables.</span></li>
+              <li><b>Campagne sectorielle</b><span>Objectifs, climax, boss et victoire persistante.</span></li>
+              <li><b>Vagues évolutives</b><span>Castes, élites, modificateurs et horde sans fin.</span></li>
+              <li><b>Arsenal rituel</b><span>Six armes, mêlée, grenade, capacités et pièges.</span></li>
+              <li><b>Progression roguelite</b><span>Greffes de run, fragments et reprise sécurisée.</span></li>
             </ul>
-            <div class="menu-actions">
-              <button id="codex-button" class="secondary-button">CODEX</button>
-              <button id="settings-button" class="secondary-button">RÉGLAGES</button>
-              <button id="credits-button" class="secondary-button">CRÉDITS</button>
-            </div>
+            <div class="menu-actions"><button id="codex-button" class="secondary-button">CODEX</button><button id="settings-button" class="secondary-button">RÉGLAGES</button><button id="credits-button" class="secondary-button">CRÉDITS</button></div>
           </aside>
         </div>
 
-        <footer class="controls-strip">
-          <span><kbd>ZQSD / WASD</kbd> mouvement</span>
-          <span><kbd>SOURIS</kbd> viser</span>
-          <span><kbd>CLIC G.</kbd> tirer</span>
-          <span><kbd>R</kbd> recharger</span>
-          <span><kbd>1–6</kbd> armes</span>
-          <span><kbd>Q</kbd> capacité</span>
-          <span><kbd>G</kbd> grenade</span>
-          <span><kbd>V</kbd> mêlée</span>
-          <span><kbd>E</kbd> interagir</span>
-        </footer>
+        <footer class="controls-strip"><span><kbd>ZQSD / WASD</kbd> mouvement</span><span><kbd>MAJ</kbd> sprinter</span><span><kbd>ESPACE</kbd> sauter</span><span><kbd>SOURIS</kbd> viser</span><span><kbd>CLIC G.</kbd> tirer</span><span><kbd>R</kbd> recharger</span><span><kbd>1–6</kbd> armes</span><span><kbd>C</kbd> capacité</span><span><kbd>G</kbd> grenade</span><span><kbd>V</kbd> mêlée</span><span><kbd>E</kbd> interagir</span></footer>
       </div>
     </section>
 
-    <section id="hud" class="hidden" aria-live="polite">
+    <section id="hud" class="hidden" aria-label="Interface de combat">
       <div class="hud-top-left">
         <div class="hud-kicker">NŒUD 07 // CONFINEMENT</div>
         <div class="wave-line"><span>VAGUE</span><strong id="wave-number">1</strong><em id="wave-modifier">STANDARD</em></div>
         <div id="objective" class="objective">Éliminez les entités restantes</div>
         <div class="enemy-counter"><span id="enemy-count">0</span> signatures hostiles</div>
       </div>
-
-      <div class="hud-top-center">
-        <div id="boss-wrap" class="boss-wrap hidden">
-          <div class="boss-name" id="boss-name">GARDIEN DU SEUIL</div>
-          <div class="bar boss-bar"><i id="boss-bar-fill"></i></div>
-        </div>
-      </div>
-
-      <div class="hud-top-right">
-        <div class="essence-block"><span>ESSENCE</span><strong id="essence-value">0</strong></div>
-        <div class="score-block"><span>SCORE</span><strong id="score-value">000000</strong></div>
-        <div id="streak" class="streak hidden">SÉRIE ×<strong>2</strong></div>
-      </div>
-
+      <div class="hud-top-center"><div id="boss-wrap" class="boss-wrap hidden"><div class="boss-name" id="boss-name">GARDIEN DU SEUIL</div><div class="bar boss-bar"><i id="boss-bar-fill"></i></div></div></div>
+      <div class="hud-top-right"><div class="essence-block"><span>ESSENCE</span><strong id="essence-value">0</strong></div><div class="score-block"><span>SCORE</span><strong id="score-value">000000</strong></div><div id="streak" class="streak hidden">SÉRIE ×<strong>2</strong></div></div>
       <div class="hud-bottom-left">
-        <div class="resource-row health-row">
-          <span class="resource-icon">+</span>
-          <div><label>SANTÉ <b id="health-text">100</b></label><div class="bar"><i id="health-bar"></i></div></div>
-        </div>
-        <div class="resource-row armor-row">
-          <span class="resource-icon">▰</span>
-          <div><label>ARMURE <b id="armor-text">50</b></label><div class="bar"><i id="armor-bar"></i></div></div>
-        </div>
-        <div class="resource-row corruption-row">
-          <span class="resource-icon">◈</span>
-          <div><label>SOUILLURE <b id="corruption-text">0%</b></label><div class="bar"><i id="corruption-bar"></i></div></div>
-        </div>
-        <div id="ability-widget" class="ability-widget ready">
-          <span class="keycap">Q</span>
-          <div><label id="ability-name">ÉGIDE CINÉTIQUE</label><div class="ability-meter"><i id="ability-fill"></i></div></div>
-        </div>
+        <div class="resource-row health-row"><span class="resource-icon">+</span><div><label>SANTÉ <b id="health-text">100</b></label><div class="bar"><i id="health-bar"></i></div></div></div>
+        <div class="resource-row armor-row"><span class="resource-icon">▰</span><div><label>ARMURE <b id="armor-text">50</b></label><div class="bar"><i id="armor-bar"></i></div></div></div>
+        <div class="resource-row corruption-row"><span class="resource-icon">◈</span><div><label>SOUILLURE <b id="corruption-text">0%</b></label><div class="bar"><i id="corruption-bar"></i></div></div></div>
+        <div id="ability-widget" class="ability-widget ready"><span class="keycap">C</span><div><label id="ability-name">ÉGIDE CINÉTIQUE</label><div class="ability-meter"><i id="ability-fill"></i></div></div></div>
       </div>
-
-      <div class="hud-bottom-right">
-        <div class="weapon-name" id="weapon-name">WARD-9</div>
-        <div class="ammo-line"><strong id="ammo-mag">30</strong><span>/</span><em id="ammo-reserve">180</em></div>
-        <div class="weapon-state" id="weapon-state">AUTO · BALISTIQUE</div>
-        <div class="grenade-state"><span class="keycap">G</span> GRENADE <b id="grenade-count">2</b></div>
-        <div class="grenade-state"><span class="keycap">V</span> COUP DE CROSSE</div>
-        <div id="weapon-slots" class="weapon-slots"></div>
-      </div>
-
-      <div id="crosshair" class="crosshair">
-        <i class="crosshair-top"></i><i class="crosshair-right"></i><i class="crosshair-bottom"></i><i class="crosshair-left"></i>
-        <b id="hitmarker"></b>
-      </div>
+      <div class="hud-bottom-right"><div class="weapon-name" id="weapon-name">WARD-9</div><div class="ammo-line"><strong id="ammo-mag">30</strong><span>/</span><em id="ammo-reserve">180</em></div><div class="weapon-state" id="weapon-state">AUTO · BALISTIQUE</div><div class="grenade-state"><span class="keycap">G</span> GRENADE <b id="grenade-count">2</b></div><div class="grenade-state"><span class="keycap">V</span> COUP DE CROSSE</div><div id="weapon-slots" class="weapon-slots"></div></div>
+      <div id="crosshair" class="crosshair"><i class="crosshair-top"></i><i class="crosshair-right"></i><i class="crosshair-bottom"></i><i class="crosshair-left"></i><b id="hitmarker"></b></div>
       <div id="damage-direction" class="damage-direction"></div>
       <div id="interaction-prompt" class="interaction-prompt hidden"><kbd>E</kbd><div><strong id="interaction-title">ACTIVER</strong><span id="interaction-cost"></span></div></div>
       <div id="reload-prompt" class="reload-prompt hidden">RECHARGEMENT</div>
-      <div id="announcement" class="announcement hidden"><span id="announcement-kicker"></span><strong id="announcement-title"></strong><small id="announcement-subtitle"></small></div>
-      <div id="toast-stack" class="toast-stack"></div>
-      <div id="subtitle" class="subtitle hidden"></div>
+      <div id="announcement" class="announcement hidden" role="status" aria-live="polite" aria-atomic="true"><span id="announcement-kicker"></span><strong id="announcement-title"></strong><small id="announcement-subtitle"></small></div>
+      <div id="toast-stack" class="toast-stack" role="log" aria-live="polite" aria-relevant="additions"></div>
+      <div id="subtitle" class="subtitle hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     </section>
 
-    <section id="upgrade-screen" class="screen overlay-screen hidden">
-      <div class="upgrade-shell">
-        <div class="eyebrow">INTERMISSION // GREFFE AUTORISÉE</div>
-        <h2>Choisissez une altération</h2>
-        <p>Le Nexus se refermera dans <b id="upgrade-timer">15</b> secondes.</p>
-        <div id="upgrade-cards" class="upgrade-cards"></div>
+    <div id="touch-controls" class="touch-controls hidden" aria-label="Commandes tactiles">
+      <div id="touch-look" class="touch-look" aria-label="Zone tactile pour regarder"></div>
+      <div id="touch-move" class="touch-stick" aria-label="Stick tactile de déplacement"><span id="touch-move-knob" class="touch-stick-knob"></span><small>DÉPLACEMENT</small></div>
+      <div class="touch-actions touch-actions-primary"><button type="button" class="touch-button touch-hold" data-key="ShiftLeft" aria-label="Sprinter">COURSE</button><button id="touch-aim" type="button" class="touch-button touch-hold" data-mouse="2" aria-label="Viser">VISÉE</button><button id="touch-fire" type="button" class="touch-button touch-fire touch-hold" data-mouse="0" aria-label="Tirer">FEU</button></div>
+      <div class="touch-actions touch-actions-secondary">
+        <button type="button" class="touch-button" data-key="KeyR" aria-label="Recharger">R</button><button type="button" class="touch-button" data-key="KeyC" aria-label="Capacité">C</button><button type="button" class="touch-button" data-key="KeyG" aria-label="Grenade">G</button><button type="button" class="touch-button" data-key="KeyV" aria-label="Mêlée">V</button><button type="button" class="touch-button" data-key="KeyE" aria-label="Interagir">E</button><button type="button" class="touch-button" data-key="Space" aria-label="Sauter">↑</button><button type="button" class="touch-button" data-wheel="1" aria-label="Arme suivante">ARME</button><button id="touch-pause" type="button" class="touch-button" aria-label="Mettre en pause">Ⅱ</button>
       </div>
-    </section>
+    </div>
 
-    <section id="pause-screen" class="screen overlay-screen hidden">
-      <div class="panel pause-panel">
-        <div class="eyebrow">PROTOCOLE SUSPENDU</div>
-        <h2>Pause</h2>
-        <button id="resume-button" class="primary-button">REPRENDRE</button>
-        <button id="pause-settings-button" class="secondary-button">RÉGLAGES</button>
-        <button id="restart-button" class="secondary-button">RECOMMENCER LA PARTIE</button>
-        <button id="quit-button" class="danger-button">ABANDONNER LE NŒUD</button>
-      </div>
-    </section>
+    <section id="pointer-lock-screen" class="screen overlay-screen pointer-lock-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pointer-lock-title"><div class="panel compact pointer-lock-panel"><div class="eyebrow">CONTRÔLE OPÉRATEUR INTERROMPU</div><h2 id="pointer-lock-title">Reprendre le contrôle</h2><p>Le combat est suspendu. Activez la zone de jeu pour reverrouiller le pointeur.</p><button id="pointer-lock-button" class="primary-button">REPRENDRE LE COMBAT</button></div></section>
 
-    <section id="gameover-screen" class="screen overlay-screen hidden">
-      <div class="gameover-shell">
-        <div class="eyebrow">CONFINEMENT ROMPU</div>
-        <h2>LE NEXUS VOUS A RÉCLAMÉ</h2>
-        <div class="result-grid">
-          <div><span>Vague atteinte</span><strong id="result-wave">0</strong></div>
-          <div><span>Entités abattues</span><strong id="result-kills">0</strong></div>
-          <div><span>Score final</span><strong id="result-score">0</strong></div>
-          <div><span>Fragments gagnés</span><strong id="result-shards">0</strong></div>
-        </div>
-        <div class="gameover-actions">
-          <button id="gameover-restart" class="primary-button">NOUVELLE TENTATIVE</button>
-          <button id="gameover-menu" class="secondary-button">RETOUR AU DOSSIER</button>
-        </div>
-      </div>
-    </section>
+    <section id="upgrade-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="upgrade-title"><div class="upgrade-shell"><div class="eyebrow">INTERMISSION // GREFFE AUTORISÉE</div><h2 id="upgrade-title">Choisissez une altération</h2><p>Le Nexus se refermera dans <b id="upgrade-timer">24</b> secondes.</p><div id="upgrade-cards" class="upgrade-cards"></div></div></section>
 
-    <section id="codex-screen" class="screen overlay-screen hidden">
-      <div class="modal-shell codex-shell">
-        <header class="modal-header">
-          <div><div class="eyebrow">ARCHIVES DU NŒUD</div><h2>Codex de confinement</h2></div>
-          <button class="close-button" data-close="codex-screen" aria-label="Fermer">×</button>
-        </header>
-        <nav class="tab-row">
-          <button class="tab active" data-tab="bestiary">BESTIAIRE</button>
-          <button class="tab" data-tab="arsenal">ARSENAL</button>
-          <button class="tab" data-tab="meta">GREFFES</button>
-          <button class="tab" data-tab="records">DOSSIER</button>
-        </nav>
-        <div id="codex-content" class="codex-content"></div>
-      </div>
-    </section>
+    <section id="pause-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-panel"><div class="eyebrow">PROTOCOLE SUSPENDU</div><h2 id="pause-title">Pause</h2><button id="resume-button" class="primary-button">REPRENDRE</button><button id="pause-settings-button" class="secondary-button">RÉGLAGES</button><button id="restart-button" class="secondary-button">RECOMMENCER LA PARTIE</button><button id="quit-button" class="danger-button">ABANDONNER LE NŒUD</button></div></section>
 
-    <section id="settings-screen" class="screen overlay-screen hidden">
-      <div class="modal-shell settings-shell">
-        <header class="modal-header">
-          <div><div class="eyebrow">CONFIGURATION OPÉRATEUR</div><h2>Réglages</h2></div>
-          <button class="close-button" data-close="settings-screen" aria-label="Fermer">×</button>
-        </header>
-        <div class="settings-grid">
-          <label><span>Sensibilité souris <b id="sensitivity-value">1.00</b></span><input id="sensitivity" type="range" min="0.25" max="2.5" step="0.05" value="1"></label>
-          <label><span>Volume général <b id="volume-value">70%</b></span><input id="volume" type="range" min="0" max="1" step="0.05" value="0.7"></label>
-          <label><span>Champ de vision <b id="fov-value">82°</b></span><input id="fov" type="range" min="65" max="105" step="1" value="82"></label>
-          <label><span>Qualité de rendu</span><select id="render-scale"><option value="0.7">Performance</option><option value="1" selected>Équilibrée</option><option value="1.35">Élevée</option></select></label>
-          <label class="toggle-row"><span>Balancement de caméra</span><input id="head-bob" type="checkbox" checked></label>
-          <label class="toggle-row"><span>Flashs réduits</span><input id="reduced-flashes" type="checkbox"></label>
-          <label class="toggle-row"><span>Gore procédural</span><input id="gore" type="checkbox" checked></label>
-          <label class="toggle-row"><span>Inverser l’axe vertical</span><input id="invert-y" type="checkbox"></label>
-        </div>
-        <button id="reset-settings" class="secondary-button">RÉTABLIR LES VALEURS</button>
-      </div>
-    </section>
+    <section id="gameover-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="gameover-title"><div class="gameover-shell"><div class="eyebrow">CONFINEMENT ROMPU</div><h2 id="gameover-title">LE NEXUS VOUS A RÉCLAMÉ</h2><div class="result-grid"><div><span>Vague atteinte</span><strong id="result-wave">0</strong></div><div><span>Entités abattues</span><strong id="result-kills">0</strong></div><div><span>Score final</span><strong id="result-score">0</strong></div><div><span>Fragments gagnés</span><strong id="result-shards">0</strong></div></div><div class="gameover-actions"><button id="gameover-restart" class="primary-button">NOUVELLE TENTATIVE</button><button id="gameover-menu" class="secondary-button">RETOUR AU DOSSIER</button></div></div></section>
 
-    <section id="credits-screen" class="screen overlay-screen hidden">
-      <div class="modal-shell credits-shell">
-        <header class="modal-header">
-          <div><div class="eyebrow">PROJET ORIGINAL</div><h2>Nexus of Torment</h2></div>
-          <button class="close-button" data-close="credits-screen" aria-label="Fermer">×</button>
-        </header>
-        <p>FPS 3D de survie en vagues, créé comme une œuvre originale d’horreur industrielle et rituelle.</p>
-        <div class="credit-lines">
-          <span><b>Conception et code</b> Génération Codex / OpenAI</span>
-          <span><b>Moteur</b> WebGL2 autonome, sans dépendance externe</span>
-          <span><b>Modèles et effets</b> Géométrie et shaders procéduraux</span>
-          <span><b>Audio</b> Synthèse Web Audio en temps réel</span>
-        </div>
-        <p class="fine-print">Ce projet n’utilise aucun personnage, nom, musique ou asset provenant d’une licence existante.</p>
-      </div>
-    </section>
+    <section id="victory-screen" class="screen overlay-screen victory-screen hidden" role="dialog" aria-modal="true" aria-labelledby="victory-title"><div class="gameover-shell victory-shell"><div class="eyebrow">LITURGIE INTERROMPUE</div><h2 id="victory-title">LE NŒUD EST SCELLÉ</h2><p class="victory-copy">La campagne est purgée. Le Nexus demeure pourtant assez vivant pour une survie sans fin.</p><div class="result-grid"><div><span>Secteurs purgés</span><strong id="victory-sectors">0</strong></div><div><span>Entités abattues</span><strong id="victory-kills">0</strong></div><div><span>Score final</span><strong id="victory-score">0</strong></div><div><span>Fragments gagnés</span><strong id="victory-shards">0</strong></div></div><div class="gameover-actions victory-actions"><button id="victory-endless" class="primary-button">CONTINUER EN SURVIE INFINIE</button><button id="victory-restart" class="secondary-button">NOUVELLE TENTATIVE</button><button id="victory-menu" class="secondary-button">RETOUR AU DOSSIER</button></div></div></section>
+
+    <section id="codex-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="codex-title"><div class="modal-shell codex-shell"><header class="modal-header"><div><div class="eyebrow">ARCHIVES DU NŒUD</div><h2 id="codex-title">Codex de confinement</h2></div><button class="close-button" data-close="codex-screen" aria-label="Fermer le codex">×</button></header><nav class="tab-row" role="tablist" aria-label="Sections du codex"><button class="tab active" data-tab="bestiary" role="tab" aria-selected="true" aria-controls="codex-content">BESTIAIRE</button><button class="tab" data-tab="arsenal" role="tab" aria-selected="false" aria-controls="codex-content">ARSENAL</button><button class="tab" data-tab="meta" role="tab" aria-selected="false" aria-controls="codex-content">GREFFES</button><button class="tab" data-tab="records" role="tab" aria-selected="false" aria-controls="codex-content">DOSSIER</button></nav><div id="codex-content" class="codex-content" role="tabpanel"></div></div></section>
+
+    <section id="settings-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div class="modal-shell settings-shell"><header class="modal-header"><div><div class="eyebrow">CONFIGURATION OPÉRATEUR</div><h2 id="settings-title">Réglages</h2></div><button class="close-button" data-close="settings-screen" aria-label="Fermer les réglages">×</button></header><div class="settings-grid">
+      <label><span>Sensibilité souris <b id="sensitivity-value">1.00</b></span><input id="sensitivity" type="range" min="0.25" max="2.5" step="0.05" value="1"></label>
+      <label><span>Volume général <b id="volume-value">70%</b></span><input id="volume" type="range" min="0" max="1" step="0.05" value="0.7"></label>
+      <label><span>Champ de vision <b id="fov-value">82°</b></span><input id="fov" type="range" min="65" max="105" step="1" value="82"></label>
+      <label><span>Qualité de rendu</span><select id="render-scale"><option value="0.7">Performance</option><option value="1" selected>Équilibrée</option><option value="1.35">Élevée</option></select></label>
+      <label><span>Taille du HUD</span><select id="hud-scale"><option value="0.85">Compacte</option><option value="1" selected>Normale</option><option value="1.15">Grande</option></select></label>
+      <label><span>Intensité des secousses <b id="shake-intensity-value">100%</b></span><input id="shake-intensity" type="range" min="0" max="1" step="0.1" value="1"></label>
+      <label class="toggle-row"><span>Balancement de caméra</span><input id="head-bob" type="checkbox" checked></label>
+      <label class="toggle-row"><span>Flashs réduits</span><input id="reduced-flashes" type="checkbox"></label>
+      <label class="toggle-row"><span>Mouvements réduits</span><input id="reduced-motion" type="checkbox"></label>
+      <label class="toggle-row"><span>Gore procédural</span><input id="gore" type="checkbox" checked></label>
+      <label class="toggle-row"><span>Inverser l’axe vertical</span><input id="invert-y" type="checkbox"></label>
+      <label class="toggle-row"><span>Contraste renforcé de l’interface</span><input id="ui-contrast" type="checkbox"></label>
+      <label class="toggle-row"><span>Contraste renforcé des ennemis</span><input id="enemy-contrast" type="checkbox"></label>
+      <label class="toggle-row"><span>Sous-titres et alertes textuelles</span><input id="subtitles-enabled" type="checkbox" checked></label>
+    </div><button id="reset-settings" class="secondary-button">RÉTABLIR LES VALEURS</button></div></section>
+
+    <section id="credits-screen" class="screen overlay-screen hidden" role="dialog" aria-modal="true" aria-labelledby="credits-title"><div class="modal-shell credits-shell"><header class="modal-header"><div><div class="eyebrow">PROJET ORIGINAL</div><h2 id="credits-title">Nexus of Torment</h2></div><button class="close-button" data-close="credits-screen" aria-label="Fermer les crédits">×</button></header><p>Survival-horror d’action original, conçu autour d’une horreur industrielle et d’une liturgie nerveuse.</p><div class="credit-lines"><span><b>Conception et code</b> Génération Codex / OpenAI</span><span><b>Moteur</b> WebGL2 autonome, sans dépendance externe</span><span><b>Modèles et effets</b> Géométrie et shaders procéduraux originaux</span><span><b>Audio</b> Synthèse Web Audio en temps réel</span></div><p class="fine-print">Ce projet n’utilise aucun personnage, nom, musique ou asset provenant d’une licence existante.</p></div></section>
   </main>
 
   <script src="src/core/math.js"></script>

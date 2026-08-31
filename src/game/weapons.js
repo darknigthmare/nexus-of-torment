@@ -221,7 +221,8 @@
       if(this.switchTimer>0)return;
       const config=this.current();
       const wantsFire=config.automatic?input.mouse(0):input.consumeMouse(0);
-      if(wantsFire&&this.game.state==='playing'&&this.game.input.pointerLocked)this.fire();
+      const combatReady=typeof input.combatReady==='function'?input.combatReady():input.pointerLocked;
+      if(wantsFire&&this.game.state==='playing'&&combatReady)this.fire();
     }
 
     startReload(){
@@ -287,7 +288,7 @@
       const maxDistance=world.hit?Math.min(config.range,world.distance):config.range;
       const hits=[];
       for(const enemy of this.game.enemies){
-        if(!enemy.alive)continue;
+        if(!enemy.alive||enemy.spawnTimer>.65)continue;
         const hit=enemy.raycast(origin,direction,maxDistance);
         if(hit.hit)hits.push({enemy,distance:hit.distance,zone:hit.zone});
       }
@@ -334,7 +335,8 @@
     }
 
     melee(){
-      if(this.meleeCooldown>0||this.switchTimer>0||this.game.state!=='playing'||!this.game.input.pointerLocked)return false;
+      const input=this.game.input,combatReady=typeof input.combatReady==='function'?input.combatReady():input.pointerLocked;
+      if(this.meleeCooldown>0||this.switchTimer>0||this.game.state!=='playing'||!combatReady)return false;
       this.cancelReload();
       this.meleeCooldown=.62;
       this.meleeTimer=.34;

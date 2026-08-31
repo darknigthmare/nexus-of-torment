@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const errors = [];
 const checks = [];
+const releaseAudit = process.argv.includes('--release');
 
 function pass(label, details = '') {
   checks.push({ ok: true, label, details });
@@ -21,14 +22,14 @@ function expect(condition, label, details = '') {
 
 const requiredFiles = [
   'index.html', 'styles.css', 'package.json', 'version.json', 'server.mjs',
+  'manifest.webmanifest', 'sw.js', 'icons/nexus-icon.svg',
   'start-game.bat', 'start-game.sh', 'README.md', 'CHANGELOG.md', 'LICENSE',
   'src/core/math.js', 'src/core/engine.js', 'src/core/audio.js',
   'src/game/data.js', 'src/game/arena.js', 'src/game/entities.js',
   'src/game/weapons.js', 'src/game/ui.js', 'src/game/game.js', 'src/main.js',
-  'tools/check.mjs', 'tools/audit.mjs', 'tools/runtime-smoke.mjs', 'tools/http-smoke.mjs',
-  'docs/GDD.md', 'docs/TECHNICAL.md', 'docs/CODEX.md', 'docs/QA_REPORT.md', 'docs/ROADMAP.md', 'docs/QA_BROWSER_1.1.json',
-  'screenshots/menu.png', 'screenshots/gameplay.png', 'screenshots/verified-gameplay.png',
-  'screenshots/menu-1.1.png', 'screenshots/gameplay-1.1.png'
+  'tools/check.mjs', 'tools/audit.mjs', 'tools/runtime-smoke.mjs', 'tools/http-smoke.mjs', 'tools/build.mjs', 'tools/browser-qa.mjs',
+  '.github/workflows/ci.yml',
+  'docs/GDD.md', 'docs/TECHNICAL.md', 'docs/CODEX.md', 'docs/QA_REPORT.md', 'docs/ROADMAP.md'
 ];
 
 for (const relative of requiredFiles) {
@@ -38,8 +39,113 @@ for (const relative of requiredFiles) {
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const versionJson = JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf8'));
-expect(!packageJson.dependencies && !packageJson.devDependencies, 'Projet sans dépendance npm');
-expect(packageJson.version === versionJson.version, 'Versions package/version alignées', packageJson.version);
+const runtimeDependencies = Object.keys(packageJson.dependencies || {});
+const developmentDependencies = Object.keys(packageJson.devDependencies || {});
+const allowedDevelopmentDependencies = new Set(['playwright-core']);
+expect(
+  runtimeDependencies.length === 0 && developmentDependencies.every(name => allowedDevelopmentDependencies.has(name)),
+  'Projet sans dépendance d’exécution et outillage QA borné',
+  developmentDependencies.join(', ')
+);
+expect(
+  packageJson.version === versionJson.version,
+  'Versions package et contenu alignées',
+  packageJson.version
+);
+const releaseScript = packageJson.scripts?.['qa:release'] || '';
+expect(
+  Boolean(
+    packageJson.scripts?.build &&
+    packageJson.scripts?.qa &&
+    packageJson.scripts?.['qa:browser'] &&
+    packageJson.scripts?.['audit:release'] === 'node tools/audit.mjs --release' &&
+    releaseScript === 'npm run qa && npm run qa:browser && npm run audit:release' &&
+    fs.existsSync(path.join(root, 'tools/browser-qa.mjs'))
+  ),
+  'Pipeline build et qa:release déclaré'
+);
+
+// La preuve fraîche n’est contrôlée qu’après la passe navigateur : un échec précédent
+// ne doit jamais empêcher de reconstruire puis de réexécuter la suite.
+if (releaseAudit) {
+  let browserEvidence;
+  try {
+    browserEvidence = JSON.parse(fs.readFileSync(path.join(root, 'docs/QA_BROWSER_1.2.json'), 'utf8'));
+  } catch (error) {
+    fail('Preuve navigateur locale lisible', error.message);
+  }
+  const validReport = browserEvidence !== null && typeof browserEvidence === 'object' && !Array.isArray(browserEvidence);
+  expect(validReport, 'Preuve locale : structure de rapport valide');
+  if (validReport) {
+    const browserChecks = Array.isArray(browserEvidence.checks) ? browserEvidence.checks : [];
+    expect(
+      browserEvidence.target === 'local-build' && browserEvidence.version === versionJson.version &&
+      browserChecks.length > 0 && browserChecks.every(check => check?.passed === true) &&
+      browserEvidence.summary?.passed === browserChecks.length && browserEvidence.summary?.failed === 0 &&
+      Array.isArray(browserEvidence.failures) && browserEvidence.failures.length === 0 && !browserEvidence.error,
+      'Preuve locale : version, contrôles et résultat cohérents',
+      String(browserEvidence.summary?.passed || 0) + ' contrôles'
+    );
+    expect(
+      Array.isArray(browserEvidence.runtimeErrors) && browserEvidence.runtimeErrors.length === 0,
+      'Preuve locale : console et runtime sans erreur'
+    );
+    const requiredBrowserChecks = [
+      'Boot WebGL2 sans fallback',
+      'Accessibilité appliquée et focus contenu',
+      'Run desktop lancé via UI',
+      'Cadence jouable à 1280x720 sur trois échantillons',
+      'Quatre difficultés instanciées',
+      'Trois secteurs instanciés avec départs distincts',
+      'Boss dédiés aux offices 5 et 10',
+      'Checkpoint écrit',
+      'Reprise restaure le run',
+      'Mort finalisée sur résultats',
+      'Nouvelle tentative après mort',
+      'Boss final, extraction et victoire',
+      'Victoire prolongeable en survie infinie propre',
+      'Service worker et cache installés',
+      'PWA redémarre hors-ligne',
+      'Cache-miss hors-ligne répond proprement en 503',
+      'Menu mobile sans débordement',
+      'Run tactile lancé via UI',
+      'FEU tactile pilote le système d’arme',
+      'Stick tactile transmet le déplacement',
+      'Pause tactile opérationnelle',
+      'Console et runtime sans erreur'
+    ];
+    const missingBrowserChecks = requiredBrowserChecks.filter(name =>
+      !browserChecks.some(check => check?.name === name && check.passed === true)
+    );
+    expect(missingBrowserChecks.length === 0, 'Preuve locale : parcours critiques présents', missingBrowserChecks.join(', '));
+    const expectedCaptures = {
+      desktopMenu:'docs/screenshots/v1.2-desktop-menu.png',
+      desktopGameplay:'docs/screenshots/v1.2-desktop-gameplay.png',
+      mobileGameplay:'docs/screenshots/v1.2-mobile-gameplay.png'
+    };
+    expect(
+      Object.keys(browserEvidence.evidence || {}).length === 3 &&
+      Object.entries(expectedCaptures).every(([key, relative]) => {
+        const full = path.join(root, relative);
+        return browserEvidence.evidence?.[key] === relative && fs.existsSync(full) && fs.statSync(full).size > 0;
+      }),
+      'Preuve locale : trois captures présentes et correctement référencées'
+    );
+    const performance = browserEvidence.performance || {};
+    const samples = Array.isArray(performance.samples) ? performance.samples : [];
+    const median = samples.length === 3 && samples.every(Number.isFinite)
+      ? [...samples].sort((a, b) => a - b)[1] : 0;
+    expect(
+      samples.length === 3 && samples.every(value => Number.isFinite(value) && value >= 24) && median >= 30 &&
+      performance.averageFps === median && performance.viewport === '1280x720' &&
+      performance.renderScale === 1 && performance.buffer === '1280x720' &&
+      typeof performance.renderer === 'string' && performance.renderer.length > 0 &&
+      !/swiftshader|llvmpipe|softpipe|lavapipe|software|non exposé/i.test(performance.renderer),
+      'Preuve locale : rendu matériel natif, médiane ≥30 FPS et minimum ≥24 FPS',
+      'médiane ' + median + ' · échantillons ' + samples.join(', ') + ' · échelle ' + performance.renderScale
+    );
+  }
+}
 
 const indexSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const localRefs = [];
@@ -60,8 +166,27 @@ const idMatches = [...indexSource.matchAll(/\bid=["']([^"']+)["']/g)].map((entry
 const duplicatedIds = [...new Set(idMatches.filter((id, index) => idMatches.indexOf(id) !== index))];
 expect(duplicatedIds.length === 0, 'Identifiants HTML uniques', duplicatedIds.join(', '));
 
+const uiSource = fs.readFileSync(path.join(root, 'src/game/ui.js'), 'utf8');
+const uiIdRefs = [...uiSource.matchAll(/this\.\$\(['"]([^'"]+)['"]\)/g)].map((entry) => entry[1]);
+const missingUiIds = [...new Set(uiIdRefs.filter((id) => !idMatches.includes(id)))];
+expect(missingUiIds.length === 0, 'Contrat UI/HTML complet', missingUiIds.join(', '));
+
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
+expect(manifest.display === 'standalone' && manifest.start_url && manifest.scope, 'Manifeste PWA installable');
+expect(Array.isArray(manifest.icons) && manifest.icons.every((icon) => fs.existsSync(path.join(root, icon.src))), 'Icônes PWA résolues');
+const serviceWorkerSource = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+expect(indexSource.includes('manifest.webmanifest') && fs.readFileSync(path.join(root, 'src/main.js'), 'utf8').includes('serviceWorker.register'), 'PWA enregistrée');
+expect(['index.html', 'styles.css', 'src/game/game.js', 'version.json'].every((entry) => serviceWorkerSource.includes(entry)), 'Cache hors-ligne couvre le cœur du jeu');
+
 const normalizedIndex = indexSource.toLocaleLowerCase('fr');
-expect(indexSource.includes('1–6') && normalizedIndex.includes('<kbd>v</kbd>') && normalizedIndex.includes('mêlée'), 'Interface : six emplacements et mêlée documentés');
+expect(
+  indexSource.includes('1–6') &&
+  normalizedIndex.includes('<kbd>c</kbd>') &&
+  !normalizedIndex.includes('<kbd>q</kbd>') &&
+  normalizedIndex.includes('<kbd>v</kbd>') &&
+  normalizedIndex.includes('mêlée'),
+  'Interface : six emplacements, capacité C et mêlée documentés'
+);
 
 const context = vm.createContext({ window: {} });
 const dataSource = fs.readFileSync(path.join(root, 'src/game/data.js'), 'utf8');
@@ -77,7 +202,8 @@ if (data) {
     waveModifiers: data.WAVE_MODIFIERS.length,
     runUpgrades: data.UPGRADES.length,
     metaUpgrades: Object.keys(data.META_UPGRADES).length,
-    difficultyLevels: Object.keys(data.DIFFICULTIES).length
+    difficultyLevels: Object.keys(data.DIFFICULTIES).length,
+    sectors: Object.keys(data.SECTORS || {}).length
   };
   for (const [key, actual] of Object.entries(actualCounts)) {
     const expected = versionJson.content[key];
@@ -85,6 +211,7 @@ if (data) {
   }
   const stationCount = Object.values(data.STATIONS).reduce((sum, station) => sum + (station.instances || 1), 0);
   expect(stationCount === versionJson.content.stations, 'Inventaire stations', `${stationCount}/${versionJson.content.stations}`);
+  expect(versionJson.content.waveObjectives === 3 && versionJson.content.campaignWaves === 10, 'Contrat campagne 1.2');
 
   const weaponSlots = Object.values(data.WEAPONS).map((weapon) => weapon.slot);
   expect(new Set(weaponSlots).size === weaponSlots.length, 'Emplacements d’armes uniques');

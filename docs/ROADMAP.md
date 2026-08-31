@@ -5,7 +5,7 @@
 ### 1.0.0 — Fondation
 
 - moteur WebGL 2 autonome ;
-- arène de confinement ;
+- premier secteur de confinement ;
 - trois doctrines ;
 - quatre armes ;
 - Gardien du Seuil ;
@@ -22,21 +22,31 @@
 - deux nouvelles armureries ;
 - suite de tests fonctionnels et HTTP.
 
-## Axe 1 — Diversité de cartes
+### 1.2.0 — Campagne professionnelle
+
+- campagne de dix vagues et survie sans fin ;
+- objectifs purge, maintien et chasse ;
+- Sanctuaire de Fer, Nef des Sutures et Ossuaire des Crochets ;
+- checkpoint, reprise, mort, extraction, victoire et continuation infinie ;
+- contrôles tactiles desktop/mobile et reprise du pointeur ;
+- échelle HUD, secousses, mouvement réduit, contrastes et sous-titres ;
+- PWA installable, cache et redémarrage hors ligne ;
+- build statique, CI et QA Chrome automatisée.
+
+## Axe 1 — Secteurs supplémentaires
 
 - **Chapelle de Chair** : nef étroite, autels destructibles et voies latérales.
 - **Atelier du Supplice** : convoyeurs, presses et machines réactivables.
 - **Galerie des Crochets** : verticalité, plateformes et zones de suspension.
 - **Cœur du Nexus** : géométrie instable et boss final inédit.
 
-Chaque carte devrait conserver les mêmes interfaces de stations et spawn points pour réutiliser le directeur existant.
+Chaque futur secteur devra conserver les contrats de stations, points d’apparition, positions sûres et ancrages d’objectif déjà utilisés par les trois secteurs 1.2.
 
-## Axe 2 — Objectifs de vague
+## Axe 2 — Variantes d’objectifs
 
 - protéger un générateur ;
 - interrompre plusieurs relais ;
 - transporter une cellule de confinement ;
-- purger une zone sans quitter un cercle ;
 - extraction après un temps limité ;
 - vagues sans boutique ou avec arsenal imposé.
 
@@ -55,10 +65,10 @@ Les deux anciennes pistes « lance-chaînes » et « projecteur exorciste » son
 
 - support manette natif ;
 - remapping complet ;
-- réglage de la taille du HUD ;
-- mode contraste élevé des ennemis ;
-- réglage indépendant des secousses ;
-- sous-titrage étendu des signaux audio.
+- navigation intégrale des menus à la manette ;
+- presets daltonisme supplémentaires ;
+- sous-titrage directionnel des signaux audio ;
+- personnalisation de la taille et de la disposition des contrôles tactiles.
 
 ## Axe 5 — Coopération
 
@@ -81,17 +91,11 @@ Le réseau demanderait une refonte de la simulation et n’est pas inclus dans l
 - statistiques d’armes ;
 - cosmétiques procéduraux sans microtransaction.
 
-## Axe 7 — Port natif
+## Axe 7 — Durcissement Web
 
-Le modèle data-driven, le directeur de vagues et les états d’IA peuvent servir de référence à un port Unreal Engine 5 ou Godot.
-
-Pour Unreal Engine :
-
-- `data.js` → Data Tables ou Primary Data Assets ;
-- `Enemy.update()` → Behavior Trees, State Trees ou composants Blueprint ;
-- `Arena` → niveau modulaire et acteurs de station ;
-- `WeaponSystem` → composants d’arme, traces et Gameplay Tags ;
-- greffes → Gameplay Ability System ou composants de stats ;
-- progression → `USaveGame`.
-
-Le port natif remplacerait progressivement les géométries procédurales par des assets haute définition tout en conservant les règles et le tuning de cette build comme référence jouable.
+- budgets de frame par classe d’appareil ;
+- adaptation dynamique de la résolution ;
+- tests hors ligne multi-navigateurs ;
+- import/export local chiffré des sauvegardes ;
+- reprise après mise à jour du service worker ;
+- télémétrie locale optionnelle et exportable, sans backend obligatoire.

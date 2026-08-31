@@ -1,9 +1,9 @@
 # Game Design Document — Nexus of Torment
 
-**Version :** 1.1.0 « Liturgie nerveuse »  
+**Version :** 1.2.0 « Liturgie nerveuse »
 **Genre :** FPS 3D / horde survival horror / progression roguelite  
 **Mode :** solo  
-**Plateforme de cette édition :** navigateur de bureau WebGL 2
+**Plateforme de cette édition :** navigateur desktop et mobile WebGL 2, PWA hors ligne
 
 ## 1. Vision
 
@@ -14,7 +14,7 @@ Le jeu repose sur quatre piliers :
 1. **Gunplay lisible et matériel** : chaque arme possède une cadence, une portée, une dispersion, un recul, une chute de dégâts et une fonction tactique identifiable.
 2. **Pression spatiale** : les castes poussent, tirent, attirent, chargent, buffent, encerclent ou contaminent.
 3. **Décisions de survie** : l’Essence est limitée et doit être répartie entre soins, munitions, surcharge défensive et nouvelles armes.
-4. **Horreur systémique** : Souillure, hallucinations, brouillard, chaînes, architecture organique et boss transforment la perception de l’arène.
+4. **Horreur systémique** : Souillure, hallucinations, brouillard, chaînes, architecture organique et boss transforment la perception de chaque secteur.
 
 La violence est stylisée et procédurale. Le jeu privilégie l’identité des silhouettes et le contraste des rôles plutôt qu’une reproduction réaliste d’une licence existante.
 
@@ -22,11 +22,24 @@ La violence est stylisée et procédurale. Le jeu privilégie l’identité des 
 
 ### 2.1 Déploiement
 
-Le joueur choisit une doctrine et un niveau de brèche. Il commence avec le WARD-9, Absolution, deux grenades et les bonus obtenus par la métaprogression.
+Le joueur choisit une doctrine, une difficulté, un secteur d’entrée et l’un des deux modes :
+
+- **Campagne — Liturgie nerveuse** : dix vagues, deux offices de boss, extraction et victoire ;
+- **Survie sans fin** : progression sans extraction finale.
+
+Il commence avec le WARD-9, Absolution, deux grenades et les bonus obtenus par la métaprogression.
 
 ### 2.2 Vague
 
 Le directeur reçoit un budget dépendant de la vague et de la difficulté. Il sélectionne les castes déverrouillées selon leur coût et leur poids, ajoute une probabilité de variante élite puis mélange la file d’apparition. Un plafond dynamique limite les entités simultanées afin de conserver la lisibilité et les performances.
+
+Les vagues standards alternent trois familles d’objectif :
+
+- **Purge** : éliminer toutes les signatures ;
+- **Maintien** : rester dans le sceau jusqu’à stabilisation, puis éliminer les survivants ;
+- **Chasse** : abattre en priorité les signatures marquées, puis purger le reste.
+
+Les renforts de maintien et de chasse empêchent l’objectif de se bloquer si une cible disparaît ou reste inaccessible. Les vagues multiples de cinq remplacent cette rotation par un objectif de boss.
 
 ### 2.3 Combat
 
@@ -44,7 +57,7 @@ Les ennemis récompensent les tirs à la tête, l’angle d’attaque, la porté
 
 ### 2.4 Intermission
 
-Une vague purgée donne de l’Essence, un soin partiel, de l’armure, une grenade et un choix de greffe. Les stations restent accessibles avant le lancement suivant.
+Une vague purgée donne de l’Essence, un soin partiel, de l’armure, une grenade et un choix de greffe. Une intermission jouable de 20 secondes laisse les stations accessibles ; le joueur peut lancer l’office suivant avec `Entrée` ou `F`, sinon le compte à rebours le fait automatiquement.
 
 ### 2.5 Boss et continuation
 
@@ -53,11 +66,13 @@ Un boss apparaît toutes les cinq vagues :
 - vagues 5, 15, 25… : **Gardien du Seuil** ;
 - vagues 10, 20, 30… : **Archidiacre des Nerfs**.
 
-Après la vague 10, la tentative peut se poursuivre dans une structure infinie. Les valeurs continuent d’augmenter avec un scaling contrôlé.
+En campagne, la mort de l’Archidiacre à la vague 10 ouvre un sceau d’extraction. Le joueur doit le maintenir pendant 3,2 secondes pour obtenir la victoire. Depuis l’écran de victoire, il peut prolonger la tentative en survie sans fin ; les valeurs continuent alors d’augmenter avec un scaling contrôlé.
 
 ### 2.6 Fin de tentative
 
-La mort produit un bilan : vague, éliminations, score et fragments. Les fragments servent aux améliorations persistantes. Le joueur peut immédiatement relancer avec la même doctrine ou revenir au dossier.
+La mort produit un bilan : vague, éliminations, score et fragments. La victoire produit son propre bilan et un bonus de fragments. L’abandon ne verse aucun fragment. Le joueur peut immédiatement relancer avec la même configuration ou revenir au dossier.
+
+Entre les vagues, un checkpoint conserve l’état de la tentative. Après rechargement, le menu expose une reprise ; les données sont validées et bornées avant restauration.
 
 ## 3. Doctrines
 
@@ -222,6 +237,16 @@ Contreparties :
 
 Les achats utilisent l’Essence de la tentative et ne sont pas persistants.
 
+### 7.1 Secteurs
+
+| Secteur | Topologie | Pression principale |
+|---|---|---|
+| Sanctuaire de Fer | Cour de confinement autour d’un autel mécanique | Encerclement et alternance courte/moyenne portée |
+| Nef des Sutures | Axe long, piliers-côtes et couvertures latérales | Tirs croisés et progression longitudinale |
+| Ossuaire des Crochets | Anneau funéraire et croisements centraux | Fermeture des lignes de fuite et attaques convergentes |
+
+Chaque secteur instancie ses propres limites, géométries, colliders, couvertures, piliers, stations, points d’apparition, position de départ et ancrages de maintien/extraction. Le directeur conserve les mêmes contrats de données entre les trois espaces.
+
 ## 8. Progression roguelite
 
 ### Greffes de run
@@ -265,14 +290,20 @@ Les vagues de boss utilisent Standard afin que le comportement du boss demeure l
 - code couleur des ressources et armes ;
 - son spatial simplifié selon la direction de la menace ;
 - points faibles cohérents avec les silhouettes ;
-- option de gore et flashs réduits.
+- option de gore et flashs réduits ;
+- échelle du HUD et intensité des secousses ;
+- mouvement réduit et respect de la préférence système ;
+- contrastes renforcés pour l’interface et les ennemis ;
+- sous-titres et alertes textuelles ;
+- focus contenu dans les écrans modaux ;
+- commandes tactiles avec cibles d’action dimensionnées pour le mobile.
 
 ## 11. Condition de réussite et d’échec
 
-La tentative s’arrête lorsque la santé atteint zéro. Il n’existe pas de victoire définitive dans le mode infini ; la vague 10 constitue le premier jalon complet avec le second boss. Le score et la meilleure vague servent d’objectif de maîtrise.
+La tentative échoue lorsque la santé atteint zéro. En campagne, elle réussit après l’Archidiacre de la vague 10 et le maintien du sceau d’extraction. Le joueur peut alors accepter le bilan de victoire ou convertir la tentative en survie sans fin. Dans ce second mode, il n’existe pas de victoire définitive ; le score et la meilleure vague servent d’objectif de maîtrise.
 
 ## 12. Périmètre de la build
 
-Inclus : boucle solo complète, arène unique, six armes, onze castes, deux boss, progression locale et tests automatisés.
+Inclus : boucle solo complète, campagne de dix vagues, survie sans fin, trois secteurs, trois objectifs standards, six armes, onze castes, deux boss, progression locale, checkpoint/reprise, commandes tactiles, accessibilité, PWA hors ligne et tests automatisés.
 
-Non inclus : coopération réseau, support manette natif, campagnes, plusieurs cartes, matchmaking, backend ou boutique en ligne.
+Non inclus : coopération réseau, support manette natif, sauvegarde cloud, matchmaking, backend ou boutique en ligne.

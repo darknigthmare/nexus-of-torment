@@ -8,20 +8,27 @@
   const { Vec3, clamp, lerp, damp, randRange, chance, pick, shuffle, weightedPick, mat4, colorHex } = M;
   const { Camera, Renderer, ParticleSystem, Input, SaveStore, Transform, Material, modelMatrixBetween } = E;
   const { Player, Enemy, Projectile, Pickup } = NT.Entities;
+  const prefersReducedMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
   const DEFAULT_SETTINGS = Object.freeze({
     sensitivity: 1,
     volume: .72,
     fov: 82,
     renderScale: 1,
+    hudScale: 1,
+    shakeIntensity: 1,
     headBob: true,
     reducedFlashes: false,
+    reducedMotion: prefersReducedMotion,
     gore: true,
-    invertY: false
+    invertY: false,
+    uiContrast: false,
+    enemyContrast: false,
+    subtitles: true
   });
 
   const DEFAULT_SAVE = {
-    version: 1,
+    version: 2,
     settings: { ...DEFAULT_SETTINGS },
     shards: 0,
     meta: {
@@ -42,7 +49,8 @@
       damage: 0,
       runs: 0,
       playTime: 0
-    }
+    },
+    activeRun: null
   };
 
   class NexusGame {
@@ -61,6 +69,7 @@
       this.time = 0;
       this.runTime = 0;
       this.lastFrame = performance.now();
+      this.lastRender = 0;
       this.wave = 0;
       this.waveActive = false;
       this.currentModifier = D.WAVE_MODIFIERS[0];
@@ -75,6 +84,17 @@
       this.chainStormTimer = 0;
       this.waveCompleteTimer = 0;
       this.pendingUpgrade = false;
+      this.intermissionActive = false;
+      this.intermissionTimer = 0;
+      this.intermissionDuration = 20;
+      this.intermissionReadyDelay = 0;
+      this.waveObjective = null;
+      this.extractionActive = false;
+      this.extractionProgress = 0;
+      this.extractionDuration = 3.2;
+      this.extractionZone = null;
+      this.modeId = 'campaign';
+      this.sectorId = 'sanctum';
       this.deathTimer = 0;
       this.lastClassId = 'bulwark';
       this.lastDifficultyId = 'unstable';
@@ -134,11 +154,12 @@
 
     _bindLifecycle() {
       this.input.onLockChange = locked => {
-        if (!locked && this.state === 'playing' && !this.pendingUpgrade && !this.player.dead) {
+        if (!locked && !this.input.touchMode && this.state === 'playing' && !this.pendingUpgrade && !this.player.dead) {
           this.pause();
         }
       };
       window.addEventListener('keydown', event => {
+        if (event.defaultPrevented) return;
         if (event.code === 'Escape' && this.state === 'playing') {
           event.preventDefault();
           this.pause();
@@ -195,7 +216,11 @@
       this.time += dt;
       try {
         this.update(dt);
-        this.render();
+        const animatedState = this.state === 'playing' || this.state === 'dying' || this.state === 'menu';
+        if (animatedState || now - this.lastRender >= 100) {
+          this.render();
+          this.lastRender = now;
+        }
       } catch (error) {
         this._fatal(error);
         return;
@@ -215,10 +240,13 @@
       }
     }
 
-    startRun(classId = 'bulwark', difficultyId = 'unstable') {
+    startRun(classId = 'bulwark', difficultyId = 'unstable', modeId = 'campaign', sectorId = 'sanctum') {
       this.audio.init();
       this.lastClassId = D.CLASSES[classId] ? classId : 'bulwark';
       this.lastDifficultyId = D.DIFFICULTIES[difficultyId] ? difficultyId : 'unstable';
+      this.modeId = modeId === 'endless' ? 'endless' : 'campaign';
+      const sectorIds = Object.keys(D.SECTORS || {});
+      this.sectorId = !sectorIds.length || D.SECTORS?.[sectorId] ? sectorId : sectorIds[0];
       this.difficulty = D.DIFFICULTIES[this.lastDifficultyId];
       this.currentModifier = D.WAVE_MODIFIERS[0];
       this.wave = 0;
@@ -233,6 +261,13 @@
       this.chainStormTimer = 0;
       this.waveCompleteTimer = 0;
       this.pendingUpgrade = false;
+      this.intermissionActive = false;
+      this.intermissionTimer = 0;
+      this.intermissionReadyDelay = 0;
+      this.waveObjective = null;
+      this.extractionActive = false;
+      this.extractionProgress = 0;
+      this.extractionZone = null;
       this.deathTimer = 0;
       this.runTime = 0;
       this.runFinalized = false;
@@ -246,11 +281,24 @@
       this.hallucinations.length = 0;
       this.particles.clear();
       this.arena.reset();
+      this.arena.setSector?.(this.sectorId);
+      this.arena.setObjectiveZone?.(null);
       this.player.reset(this.lastClassId, this.save.data.meta || {});
+      const startPosition = this.arena.getStartPosition?.();
+      if (startPosition) {
+        this.player.position.copy(startPosition);
+        this.camera.position.set(startPosition.x, startPosition.y + this.player.eyeHeight, startPosition.z);
+        const facing = D.SECTORS?.[this.sectorId]?.startFacing || [0, 0, 0];
+        const targetX = Array.isArray(facing) ? Number(facing[0]) || 0 : Number(facing?.x) || 0;
+        const targetZ = Array.isArray(facing) ? Number(facing[2]) || 0 : Number(facing?.z) || 0;
+        this.camera.yaw = Math.atan2(targetX - startPosition.x, -(targetZ - startPosition.z));
+        this.camera.pitch = 0;
+      }
       this.weapons.reset(this.save.data.meta || {});
       this.state = 'playing';
       this.previousState = 'playing';
       this.ui.enterGame();
+      this.save.data.activeRun = null;
       this.save.data.records.runs = (this.save.data.records.runs || 0) + 1;
       this.save.save();
       this.ui.announce('PROTOCOLE DE CONFINEMENT', this.player.classData.name.toUpperCase(), this.difficulty.name, 2.4);
@@ -261,16 +309,20 @@
     }
 
     restartRun() {
-      if (!this.runFinalized && this.wave > 0) this._finalizeRun(false);
+      if (!this.runFinalized && this.wave > 0) this._finalizeRun('abandon', false);
       this.input.exitLock();
-      this.startRun(this.lastClassId, this.lastDifficultyId);
+      this.startRun(this.lastClassId, this.lastDifficultyId, this.modeId, this.sectorId);
     }
 
     quitToMenu() {
-      if (!this.runFinalized && this.wave > 0) this._finalizeRun(false);
+      if (!this.runFinalized && this.wave > 0) this._finalizeRun('abandon', false);
       this.state = 'menu';
       this.waveActive = false;
       this.pendingUpgrade = false;
+      this.intermissionActive = false;
+      this.extractionActive = false;
+      this.waveObjective = null;
+      this.arena.setObjectiveZone?.(null);
       this.input.exitLock();
       this.enemies.length = 0;
       this.projectiles.length = 0;
@@ -304,8 +356,12 @@
 
     onPlayerDeath() {
       if (this.state === 'dying' || this.state === 'gameover') return;
+      this._clearActiveRun();
       this.state = 'dying';
       this.waveActive = false;
+      this.intermissionActive = false;
+      this.extractionActive = false;
+      this.arena.setObjectiveZone?.(null);
       this.deathTimer = 2.1;
       this.objectiveText = 'SIGNATURE VITALE PERDUE';
       this.input.exitLock();
@@ -314,12 +370,14 @@
       this.spawnAbilityRing(this.player.position, 0xa3172c, 9);
     }
 
-    _finalizeRun(showScreen = true) {
+    _finalizeRun(outcome = 'death', showScreen = true) {
       if (this.runFinalized) return;
       this.runFinalized = true;
       const completed = this.stats.wavesCleared;
       const base = Math.floor(completed / 2) + this.stats.bossKills * 3 + Math.floor(this.score / 7500);
-      const shards = Math.max(completed > 0 ? 1 : 0, Math.floor(base * this.difficulty.shardRate));
+      const eligible = outcome === 'death' || outcome === 'victory';
+      const victoryBonus = outcome === 'victory' ? 8 : 0;
+      const shards = eligible ? Math.max(completed > 0 ? 1 : 0, Math.floor(base * this.difficulty.shardRate) + victoryBonus) : 0;
       const records = this.save.data.records;
       this.save.data.shards = (this.save.data.shards || 0) + shards;
       records.bestWave = Math.max(records.bestWave || 0, this.wave);
@@ -329,11 +387,20 @@
       records.headshots = (records.headshots || 0) + this.stats.headshots;
       records.damage = (records.damage || 0) + this.stats.damage;
       records.playTime = (records.playTime || 0) + this.runTime;
+      this.save.data.activeRun = null;
       this.save.save();
+      const results = { outcome, wave:this.wave, sectors:outcome === 'victory' ? 1 : 0, kills:this.stats.kills, score:this.score, shards };
       if (showScreen) {
-        this.state = 'gameover';
-        this.ui.showGameOver({ wave:this.wave, kills:this.stats.kills, score:this.score, shards });
+        if (outcome === 'victory') {
+          this.state = 'victory';
+          if (this.ui.showVictory) this.ui.showVictory(results);
+          else this.ui.showGameOver(results);
+        } else {
+          this.state = 'gameover';
+          this.ui.showGameOver(results);
+        }
       }
+      return results;
     }
 
     update(dt) {
@@ -345,7 +412,7 @@
         this.audio.update?.(dt, 0, .08, false);
         return;
       }
-      if (this.state === 'paused' || this.state === 'upgrade' || this.state === 'gameover' || this.state === 'error') {
+      if (this.state === 'paused' || this.state === 'upgrade' || this.state === 'gameover' || this.state === 'victory' || this.state === 'error') {
         this.audio.update?.(dt, 0, .05, false);
         return;
       }
@@ -355,7 +422,7 @@
         this._updateEntities(dt, false);
         this._updateEffects(dt);
         this.particles.update(dt);
-        if (this.deathTimer <= 0) this._finalizeRun(true);
+        if (this.deathTimer <= 0) this._finalizeRun('death', true);
         return;
       }
       if (this.state !== 'playing') return;
@@ -367,9 +434,16 @@
       this.weapons.update(dt);
       this.arena.update(dt, this.time);
       this._handleInteraction();
-      this._updateWaveDirector(dt);
+      if (this.extractionActive) this._updateExtraction(dt);
+      else if (this.intermissionActive) this._updateIntermission(dt);
+      else {
+        this._updateWaveObjective(dt);
+        this._updateWaveDirector(dt);
+      }
+      if (this.state !== 'playing') return;
       this._updateEntities(dt, true);
       this._separateEnemies();
+      this._updateEnemyWatchdog(dt);
       this._updateEffects(dt);
       this.particles.update(dt);
       const intensity = clamp(this.enemies.length / 24 + (this.wave % 5 === 0 ? .18 : 0), 0, 1);
@@ -403,7 +477,9 @@
 
     _handleInteraction() {
       const station = this.arena.nearestStation(this.player.position);
-      if (station && this.input.consume('KeyE')) this.arena.activateStation(station);
+      if (station && this.input.consume('KeyE') && this.arena.activateStation(station) && this.intermissionActive) {
+        this._checkpointActiveRun(this.wave + 1);
+      }
     }
 
     _updateEntities(dt, allowSpawns) {
@@ -446,21 +522,59 @@
       }
     }
 
+    _updateEnemyWatchdog(dt) {
+      for (const enemy of this.enemies) {
+        if (!enemy.alive || enemy.spawnTimer > 0 || enemy.stunTimer > 0) continue;
+        enemy.watchdogTimer = (enemy.watchdogTimer || 0) + dt;
+        if (!enemy.watchdogPosition) enemy.watchdogPosition = enemy.position.clone();
+        if (enemy.watchdogTimer < .8) continue;
+        const elapsed = enemy.watchdogTimer;
+        enemy.watchdogTimer = 0;
+        const moved = enemy.position.distanceToXZ(enemy.watchdogPosition);
+        enemy.watchdogPosition.copy(enemy.position);
+        const distance = enemy.position.distanceToXZ(this.player.position);
+        const blocked = this.arena.lineBlocked(
+          new Vec3(enemy.position.x, enemy.config.flying ? enemy.position.y : Math.min(enemy.height, 1.5), enemy.position.z),
+          this.camera.position
+        );
+        const intentionallyStill = enemy.state?.toLowerCase().includes('windup') || enemy.state === 'vanish' || enemy.state === 'appear';
+        const contactRange = (enemy.radius || .5) + (this.player.radius || .42) + .85;
+        if (!intentionallyStill && blocked && distance > contactRange && moved < .16) {
+          enemy.stuckTimer = (enemy.stuckTimer || 0) + elapsed;
+        } else {
+          enemy.stuckTimer = Math.max(0, (enemy.stuckTimer || 0) - elapsed * 1.5);
+        }
+        const threshold = enemy.boss ? 5.5 : 3.2;
+        if (enemy.stuckTimer < threshold) continue;
+        const replacement = this.arena.getSpawnPoint(this.player.position, enemy.boss ? 14 : 9);
+        enemy.position.x = replacement.x;
+        enemy.position.z = replacement.z;
+        if (enemy.config.flying) enemy.position.y = Math.max(3.2, enemy.position.y);
+        enemy.velocity.set(0,0,0);
+        enemy.spawnTimer = .72;
+        enemy.stuckTimer = 0;
+        enemy.watchdogPosition.copy(enemy.position);
+        this.spawnAbilityRing(enemy.position, enemy.config.emissive, Math.max(1.4, enemy.radius * 2.6), .45);
+      }
+    }
+
     startNextWave() {
       this.wave++;
       this.waveActive = true;
       this.pendingUpgrade = false;
+      this.intermissionActive = false;
       this.waveCompleteTimer = 0;
       this.player.lastRiteUsedWave = -1;
       this.player.grenades = Math.min(this.player.maxGrenades, this.player.grenades + 1);
       this.currentModifier = this._pickModifier();
+      this._configureWaveObjective();
       this.spawnQueue = this._buildWaveQueue();
       this.spawnsRemaining = this.spawnQueue.length;
       this.spawnTimer = this.wave % 5 === 0 ? .9 : .45;
       this.chainStormTimer = randRange(5.5, 8.5);
       const bossType = this.wave % 10 === 0 ? 'archdeacon' : 'gatekeeper';
       const bossData = D.ENEMIES[bossType];
-      this.objectiveText = this.wave % 5 === 0 ? `ÉLIMINEZ ${bossData.name.toUpperCase()}` : 'PURGEZ TOUTES LES SIGNATURES';
+      this._refreshObjectiveText();
       this.arena.triggerGatePulse(1.15);
       this.audio.wave();
       const bossWave = this.wave % 5 === 0;
@@ -471,12 +585,476 @@
         bossWave ? 3.2 : 2.3
       );
       if (bossWave) this.ui.subtitle(bossType === 'archdeacon' ? 'Coupez ses relais avant que la Souillure ne vous immobilise.' : 'Sa couronne marque les condamnés. Brisez ses phases.', 4);
+      else if (this.waveObjective?.type === 'hold') this.ui.subtitle('Maintenez le sceau jusqu’à sa stabilisation, puis éliminez les survivants.', 3.4);
+      else if (this.waveObjective?.type === 'hunt') this.ui.subtitle('Les signatures marquées alimentent la brèche. Abattez-les en priorité.', 3.4);
     }
 
     _pickModifier() {
       if (this.wave <= 2 || this.wave % 5 === 0) return D.WAVE_MODIFIERS[0];
       const available = D.WAVE_MODIFIERS.filter(mod => mod.minWave <= this.wave && mod.id !== this.currentModifier?.id);
       return weightedPick(available.length ? available : D.WAVE_MODIFIERS);
+    }
+
+    _enemyCap() {
+      return Math.min(46, 24 + Math.floor(this.wave * 1.35));
+    }
+
+    _configureWaveObjective() {
+      this.arena.setObjectiveZone?.(null);
+      if (this.wave % 5 === 0) {
+        this.waveObjective = { type:'boss', phase:'active', reinforcementTimer:0 };
+        return;
+      }
+      const rotation = ['purge','hold','hunt'];
+      const type = rotation[(this.wave - 1) % rotation.length];
+      if (type === 'hold') {
+        const fallbacks = [[-10,0,8],[10,0,8],[0,0,-7],[0,0,14]];
+        const sector = D.SECTORS?.[this.sectorId];
+        const zones = sector?.objectiveZones || sector?.holdZones;
+        let source = Array.isArray(zones) && zones.length
+          ? zones[(this.wave - 1) % zones.length]
+          : sector?.objectiveAnchors?.hold || fallbacks[(this.wave - 1) % fallbacks.length];
+        if (source?.position) source = source.position;
+        const position = Array.isArray(source)
+          ? new Vec3(Number(source[0]) || 0, Number(source[1]) || 0, Number(source[2]) || 0)
+          : new Vec3(Number(source?.x) || 0, Number(source?.y) || 0, Number(source?.z) || 0);
+        this.waveObjective = {
+          type, phase:'active', position, radius:4.5,
+          progress:0, duration:clamp(9 + this.wave * .45, 10, 16),
+          reinforcementTimer:4
+        };
+        this.arena.setObjectiveZone?.(this.waveObjective);
+      } else if (type === 'hunt') {
+        const target = clamp(1 + Math.floor(this.wave / 3), 2, 4);
+        this.waveObjective = { type, phase:'active', target, remaining:target, reinforcementTimer:4 };
+      } else {
+        this.waveObjective = { type:'purge', phase:'active', reinforcementTimer:0 };
+      }
+    }
+
+    _refreshObjectiveText() {
+      const objective = this.waveObjective;
+      if (!objective) {
+        this.objectiveText = 'PURGEZ TOUTES LES SIGNATURES';
+      } else if (objective.type === 'boss') {
+        const bossType = this.wave % 10 === 0 ? 'archdeacon' : 'gatekeeper';
+        this.objectiveText = 'ÉLIMINEZ ' + D.ENEMIES[bossType].name.toUpperCase();
+      } else if (objective.type === 'hold') {
+        this.objectiveText = objective.phase === 'cleanup'
+          ? 'SCEAU STABLE · PURGEZ LES SURVIVANTS'
+          : 'MAINTENEZ LE SCEAU · ' + Math.ceil(Math.max(0, objective.duration - objective.progress)) + ' S';
+      } else if (objective.type === 'hunt') {
+        this.objectiveText = objective.phase === 'cleanup'
+          ? 'MARQUES ROMPUES · PURGEZ LES SURVIVANTS'
+          : 'ABATTEZ LES MARQUÉS · ' + Math.max(0, objective.remaining) + ' / ' + objective.target;
+      } else {
+        this.objectiveText = 'PURGEZ TOUTES LES SIGNATURES';
+      }
+    }
+
+    _updateWaveObjective(dt) {
+      const objective = this.waveObjective;
+      if (!objective || objective.phase !== 'active') return;
+      if (objective.type === 'hold') {
+        const inside = this.player.position.distanceToXZ(objective.position) <= objective.radius;
+        objective.progress = inside
+          ? Math.min(objective.duration, objective.progress + dt)
+          : Math.max(0, objective.progress - dt * .45);
+        objective.reinforcementTimer -= dt;
+        if (objective.reinforcementTimer <= 0 && this.enemies.filter(enemy => enemy.alive).length < Math.min(9, 4 + Math.floor(this.wave / 2))) {
+          objective.reinforcementTimer = randRange(3.2, 5.2);
+          this._spawnObjectiveReinforcement(false);
+        }
+        if (objective.progress >= objective.duration) {
+          objective.phase = 'cleanup';
+          this.spawnQueue.length = 0;
+          this.spawnsRemaining = 0;
+          this.arena.setObjectiveZone?.(null);
+          this.ui.announce('SCEAU STABILISÉ', 'TENUE VALIDÉE', 'Éliminez les signatures restantes.', 2);
+        }
+      } else if (objective.type === 'hunt') {
+        const aliveMarked = this.enemies.some(enemy => enemy.alive && enemy.objectiveMarked);
+        const queuedMarked = this.spawnQueue.some(entry => entry.marked);
+        objective.reinforcementTimer -= dt;
+        if (objective.remaining > 0 && !aliveMarked && !queuedMarked && objective.reinforcementTimer <= 0) {
+          objective.reinforcementTimer = 3;
+          this._spawnObjectiveReinforcement(true);
+        }
+        if (objective.remaining <= 0) {
+          objective.phase = 'cleanup';
+          this.spawnQueue.length = 0;
+          this.spawnsRemaining = 0;
+          this.ui.announce('SIGNATURES ROMPUES', 'CHASSE TERMINÉE', 'Purgez les survivants.', 2);
+        }
+      }
+      this._refreshObjectiveText();
+    }
+
+    _spawnObjectiveReinforcement(marked) {
+      if (this.enemies.filter(enemy => enemy.alive).length >= this._enemyCap()) return null;
+      const pool = Object.values(D.ENEMIES).filter(enemy => !enemy.boss && enemy.unlockWave <= this.wave);
+      if (!pool.length) return null;
+      return this.spawnEnemy(weightedPick(pool).id, null, { elite:marked, marked, instant:false, objectiveReinforcement:true });
+    }
+
+    _canCompleteWave() {
+      if (!this.waveActive || this.extractionActive) return false;
+      if (this.waveObjective?.phase === 'active' && (this.waveObjective.type === 'hold' || this.waveObjective.type === 'hunt')) return false;
+      return !this.spawnQueue.length && !this.enemies.some(enemy => enemy.alive);
+    }
+
+    _beginIntermission(duration = this.intermissionDuration) {
+      this.waveActive = false;
+      this.pendingUpgrade = false;
+      this.intermissionActive = true;
+      this.intermissionTimer = Math.max(5, duration);
+      this.intermissionReadyDelay = .65;
+      this.waveObjective = { type:'intermission', phase:'active' };
+      this.arena.setObjectiveZone?.(null);
+      this.objectiveText = 'PRÉPARATION · ' + Math.ceil(this.intermissionTimer) + ' S · ENTRÉE/F POUR CONTINUER';
+      this._checkpointActiveRun(this.wave + 1);
+      this.ui.announce('INTERMISSION', 'PRÉPAREZ LE PROCHAIN OFFICE', 'Stations actives · Entrée ou F pour continuer.', 2.4);
+    }
+
+    _combatReady() {
+      return typeof this.input.combatReady === 'function' ? Boolean(this.input.combatReady()) : Boolean(this.input.pointerLocked);
+    }
+
+    _updateIntermission(dt) {
+      this.intermissionTimer = Math.max(0, this.intermissionTimer - dt);
+      this.intermissionReadyDelay = Math.max(0, this.intermissionReadyDelay - dt);
+      this.objectiveText = 'PRÉPARATION · ' + Math.ceil(this.intermissionTimer) + ' S · ENTRÉE/F POUR CONTINUER';
+      const manual = this.intermissionReadyDelay <= 0 && (this.input.consume('Enter') || this.input.consume('KeyF'));
+      if (manual && !this._combatReady()) {
+        this.input.requestLock();
+        return;
+      }
+      if (manual || this.intermissionTimer <= 0) this._startWaveFromIntermission();
+    }
+
+    _startWaveFromIntermission() {
+      if (!this.intermissionActive) return false;
+      this._checkpointActiveRun(this.wave + 1);
+      this.intermissionActive = false;
+      this.startNextWave();
+      this.input.requestLock();
+      return true;
+    }
+
+    _extractionPosition() {
+      const sector = D.SECTORS?.[this.sectorId];
+      let source = sector?.extractionPosition || sector?.extraction || sector?.objectiveAnchors?.extraction || [0,0,-7];
+      if (source?.position) source = source.position;
+      return Array.isArray(source)
+        ? new Vec3(Number(source[0]) || 0, Number(source[1]) || 0, Number(source[2]) || 0)
+        : new Vec3(Number(source?.x) || 0, Number(source?.y) || 0, Number(source?.z) || 0);
+    }
+
+    _beginExtraction() {
+      if (this.extractionActive || this.modeId !== 'campaign' || this.wave !== 10) return false;
+      this.waveActive = true;
+      this.spawnQueue.length = 0;
+      this.spawnsRemaining = 0;
+      this.extractionActive = true;
+      this.extractionProgress = 0;
+      this.extractionZone = { type:'extraction', phase:'active', position:this._extractionPosition(), radius:3.6, progress:0, duration:this.extractionDuration };
+      this.waveObjective = this.extractionZone;
+      this.arena.setObjectiveZone?.(this.extractionZone);
+      this.objectiveText = 'REJOIGNEZ LE SCEAU D’EXTRACTION';
+      this.ui.announce('NEXUS DÉCAPITÉ', 'EXTRACTION OUVERTE', 'Tenez le sceau pendant trois secondes.', 3);
+      this.ui.subtitle('Les survivants convergent. Ne quittez pas le sceau.', 3.2);
+      this.arena.triggerGatePulse(2);
+      return true;
+    }
+
+    _updateExtraction(dt) {
+      const zone = this.extractionZone;
+      if (!zone) return;
+      const inside = this.player.position.distanceToXZ(zone.position) <= zone.radius;
+      this.extractionProgress = inside
+        ? Math.min(this.extractionDuration, this.extractionProgress + dt)
+        : Math.max(0, this.extractionProgress - dt * 1.5);
+      zone.progress = this.extractionProgress;
+      this.objectiveText = inside
+        ? 'EXTRACTION · ' + Math.ceil(Math.max(0, this.extractionDuration - this.extractionProgress)) + ' S'
+        : 'REJOIGNEZ LE SCEAU D’EXTRACTION';
+      if (this.extractionProgress < this.extractionDuration) return;
+      this.extractionActive = false;
+      this.waveActive = false;
+      this.stats.wavesCleared++;
+      this.score += 500 * this.wave;
+      this.arena.setObjectiveZone?.(null);
+      this._clearActiveRun();
+      this.input.exitLock();
+      this.audio.wave();
+      this._finalizeRun('victory', true);
+    }
+
+    continueEndless() {
+      if (this.state !== 'victory') return false;
+      this.modeId = 'endless';
+      this.runFinalized = false;
+      this.state = 'playing';
+      this.score = 0;
+      this.runTime = 0;
+      this.stats = this._newStats();
+      this.killStreak = 0;
+      this.killStreakTimer = 0;
+      this.waveActive = false;
+      this.pendingUpgrade = false;
+      this.intermissionActive = false;
+      this.waveCompleteTimer = 0;
+      this.spawnQueue.length = 0;
+      this.spawnsRemaining = 0;
+      this.spawnTimer = 0;
+      this.chainStormTimer = 0;
+      this.waveObjective = null;
+      this.extractionActive = false;
+      this.extractionProgress = 0;
+      this.extractionZone = null;
+      // La victoire peut figer des survivants, projectiles et condamnations
+      // encore actifs. Le mode sans fin repart du même survivant et du même
+      // arsenal, mais jamais avec les menaces résiduelles de la campagne.
+      this.enemies.length = 0;
+      this.projectiles.length = 0;
+      this.pickups.length = 0;
+      this.tracers.length = 0;
+      this.arcs.length = 0;
+      this.rings.length = 0;
+      this.hallucinations.length = 0;
+      this.particles.clear();
+      this.arena.reset();
+      this.arena.setObjectiveZone?.(null);
+      this.player.dead = false;
+      this.player.velocity?.set(0,0,0);
+      this.player.hitVelocity?.set(0,0,0);
+      this.player.hookTimer = 0;
+      this.player.slowTimer = 0;
+      this.player.slowAmount = 0;
+      this.currentModifier = D.WAVE_MODIFIERS[0];
+      this.ui.enterGame();
+      this._beginIntermission(12);
+      this.input.requestLock();
+      return true;
+    }
+
+    _snapshotActiveRun(nextWave = this.wave + 1) {
+      const weaponStates = {};
+      for (const [id, state] of Object.entries(this.weapons.states || {})) {
+        if (!D.WEAPONS[id]) continue;
+        weaponStates[id] = { mag:state.mag, reserve:state.reserve, maxReserve:state.maxReserve };
+      }
+      return {
+        version:1,
+        savedAt:Date.now(),
+        classId:this.lastClassId,
+        difficultyId:this.lastDifficultyId,
+        modeId:this.modeId,
+        sectorId:this.sectorId,
+        nextWave,
+        score:this.score,
+        runTime:this.runTime,
+        stats:{ ...this.stats },
+        player:{
+          maxHealth:this.player.maxHealth, health:this.player.health,
+          maxArmor:this.player.maxArmor, armor:this.player.armor,
+          corruption:this.player.corruption, essence:this.player.essence,
+          maxGrenades:this.player.maxGrenades, grenades:this.player.grenades,
+          abilityCooldown:this.player.abilityCooldown,
+          position:{ x:this.player.position.x, y:this.player.position.y, z:this.player.position.z },
+          yaw:this.camera.yaw,
+          unlockedWeapons:[...this.player.unlockedWeapons],
+          modifiers:{ ...this.player.modifiers },
+          upgradeStacks:{ ...this.player.upgradeStacks }
+        },
+        weapons:{ currentId:this.weapons.currentId, states:weaponStates }
+      };
+    }
+
+    _checkpointActiveRun(nextWave = this.wave + 1) {
+      if (this.runFinalized || this.state === 'dying' || this.state === 'victory' || this.state === 'gameover') return false;
+      this.save.data.version = 2;
+      this.save.data.activeRun = this._snapshotActiveRun(nextWave);
+      const saved = this.save.save();
+      if (!saved) this.ui.toast?.('SAUVEGARDE INDISPONIBLE', 'La reprise de tentative ne peut pas être garantie.', 'error');
+      return saved;
+    }
+
+    _clearActiveRun() {
+      if (!this.save?.data) return;
+      if (this.save.data.activeRun === null) return;
+      this.save.data.activeRun = null;
+      this.save.save();
+    }
+
+    _validateActiveRun(raw) {
+      if (!raw || typeof raw !== 'object' || raw.version !== 1) return null;
+      const number = (value, min, max, fallback = min) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? clamp(parsed, min, max) : fallback;
+      };
+      const classId = D.CLASSES[raw.classId] ? raw.classId : null;
+      const difficultyId = D.DIFFICULTIES[raw.difficultyId] ? raw.difficultyId : null;
+      if (!classId || !difficultyId) return null;
+      const modeId = raw.modeId === 'endless' ? 'endless' : 'campaign';
+      const sectorIds = Object.keys(D.SECTORS || {});
+      const sectorId = !sectorIds.length || D.SECTORS?.[raw.sectorId] ? (raw.sectorId || 'sanctum') : sectorIds[0];
+      const sectorBounds = D.SECTORS?.[sectorId]?.bounds;
+      const playerRadius = .42;
+      const positionBounds = {
+        minX:Number.isFinite(Number(sectorBounds?.minX)) ? Number(sectorBounds.minX) + playerRadius : -24,
+        maxX:Number.isFinite(Number(sectorBounds?.maxX)) ? Number(sectorBounds.maxX) - playerRadius : 24,
+        minZ:Number.isFinite(Number(sectorBounds?.minZ)) ? Number(sectorBounds.minZ) + playerRadius : -24,
+        maxZ:Number.isFinite(Number(sectorBounds?.maxZ)) ? Number(sectorBounds.maxZ) - playerRadius : 24
+      };
+      const player = raw.player && typeof raw.player === 'object' ? raw.player : {};
+      const statsSource = raw.stats && typeof raw.stats === 'object' ? raw.stats : {};
+      const statKeys = Object.keys(this._newStats());
+      const stats = {};
+      for (const key of statKeys) stats[key] = number(statsSource[key], 0, 1e9, 0);
+      const unlockedWeapons = Array.isArray(player.unlockedWeapons)
+        ? [...new Set(player.unlockedWeapons.filter(id => D.WEAPONS[id]))]
+        : ['rifle','shotgun'];
+      if (!unlockedWeapons.includes('rifle')) unlockedWeapons.unshift('rifle');
+      if (!unlockedWeapons.includes('shotgun')) unlockedWeapons.push('shotgun');
+      const modifiers = {};
+      const modifierLimits = {
+        damageMul:[.1,20], magazineMul:[.1,10], fireRateMul:[.1,10], reloadMul:[.1,5],
+        spreadMul:[.1,5], recoilMul:[.1,5], speedMul:[.1,5], essenceMul:[.1,10],
+        lifesteal:[0,.25], chainChance:[0,1], chainDamage:[0,5], ruptureChance:[0,1],
+        ruptureDamage:[0,5000], headMul:[.1,10], corruptionResist:[0,.82],
+        abilityRate:[.1,10], armorOnElite:[0,500], penetration:[0,10], lowHealthDamage:[0,5]
+      };
+      for (const [key, limits] of Object.entries(modifierLimits)) {
+        if (player.modifiers && Object.prototype.hasOwnProperty.call(player.modifiers, key)) modifiers[key] = number(player.modifiers[key], limits[0], limits[1], limits[0]);
+      }
+      modifiers.lastRite = Boolean(player.modifiers?.lastRite);
+      const upgradeStacks = {};
+      for (const upgrade of D.UPGRADES) {
+        const value = Math.floor(number(player.upgradeStacks?.[upgrade.id], 0, upgrade.max, 0));
+        if (value > 0) upgradeStacks[upgrade.id] = value;
+      }
+      const states = {};
+      const rawStates = raw.weapons?.states && typeof raw.weapons.states === 'object' ? raw.weapons.states : {};
+      for (const id of unlockedWeapons) {
+        const config = D.WEAPONS[id];
+        const source = rawStates[id] || {};
+        const maxReserve = number(source.maxReserve, 0, config.reserve * 10, config.reserve);
+        states[id] = {
+          mag:number(source.mag, 0, config.magazine * 10, config.magazine),
+          reserve:number(source.reserve, 0, maxReserve, maxReserve),
+          maxReserve
+        };
+      }
+      const maxWave = modeId === 'campaign' ? 10 : 9999;
+      return {
+        version:1, classId, difficultyId, modeId, sectorId,
+        nextWave:Math.floor(number(raw.nextWave, 1, maxWave, 1)),
+        score:number(raw.score, 0, 1e12, 0),
+        runTime:number(raw.runTime, 0, 1e9, 0),
+        stats,
+        player:{
+          maxHealth:number(player.maxHealth, 1, 10000, 100),
+          health:number(player.health, 1, 10000, 100),
+          maxArmor:number(player.maxArmor, 0, 10000, 0),
+          armor:number(player.armor, 0, 10000, 0),
+          corruption:number(player.corruption, 0, 1, 0),
+          essence:number(player.essence, 0, 1e9, 0),
+          maxGrenades:Math.floor(number(player.maxGrenades, 0, 20, 2)),
+          grenades:Math.floor(number(player.grenades, 0, 20, 2)),
+          abilityCooldown:number(player.abilityCooldown, 0, 600, 0),
+          position:{
+            x:number(player.position?.x, positionBounds.minX, positionBounds.maxX, 0),
+            y:number(player.position?.y, 0, 8, 0),
+            z:number(player.position?.z, positionBounds.minZ, positionBounds.maxZ, 10)
+          },
+          yaw:number(player.yaw, -Math.PI * 4, Math.PI * 4, Math.PI),
+          unlockedWeapons, modifiers, upgradeStacks
+        },
+        weapons:{
+          currentId:unlockedWeapons.includes(raw.weapons?.currentId) ? raw.weapons.currentId : unlockedWeapons[0],
+          states
+        }
+      };
+    }
+
+    resumeSavedRun() {
+      const snapshot = this._validateActiveRun(this.save.data.activeRun);
+      if (!snapshot) {
+        this._clearActiveRun();
+        this.ui.toast?.('REPRISE IMPOSSIBLE', 'Le checkpoint est absent ou invalide.', 'error');
+        return false;
+      }
+      this.audio.init();
+      this.lastClassId = snapshot.classId;
+      this.lastDifficultyId = snapshot.difficultyId;
+      this.modeId = snapshot.modeId;
+      this.sectorId = snapshot.sectorId;
+      this.difficulty = D.DIFFICULTIES[this.lastDifficultyId];
+      this.currentModifier = D.WAVE_MODIFIERS[0];
+      this.wave = snapshot.nextWave - 1;
+      this.waveActive = false;
+      this.pendingUpgrade = false;
+      this.intermissionActive = false;
+      this.extractionActive = false;
+      this.extractionZone = null;
+      this.killStreak = 0;
+      this.killStreakTimer = 0;
+      this.spawnTimer = 0;
+      this.chainStormTimer = 0;
+      this.waveCompleteTimer = 0;
+      this.deathTimer = 0;
+      this.score = snapshot.score;
+      this.runTime = snapshot.runTime;
+      this.runFinalized = false;
+      this.stats = { ...snapshot.stats };
+      this.spawnQueue.length = 0;
+      this.spawnsRemaining = 0;
+      this.enemies.length = 0;
+      this.projectiles.length = 0;
+      this.pickups.length = 0;
+      this.tracers.length = 0;
+      this.arcs.length = 0;
+      this.rings.length = 0;
+      this.hallucinations.length = 0;
+      this.particles.clear();
+      this.arena.reset();
+      this.arena.setSector?.(this.sectorId);
+      this.arena.setObjectiveZone?.(null);
+      this.player.reset(this.lastClassId, this.save.data.meta || {});
+      this.player.maxHealth = snapshot.player.maxHealth;
+      this.player.health = clamp(snapshot.player.health, 1, this.player.maxHealth);
+      this.player.maxArmor = snapshot.player.maxArmor;
+      this.player.armor = clamp(snapshot.player.armor, 0, this.player.maxArmor);
+      this.player.corruption = snapshot.player.corruption;
+      this.player.essence = snapshot.player.essence;
+      this.player.maxGrenades = snapshot.player.maxGrenades;
+      this.player.grenades = clamp(snapshot.player.grenades, 0, this.player.maxGrenades);
+      this.player.abilityCooldown = snapshot.player.abilityCooldown;
+      this.player.position.set(snapshot.player.position.x, snapshot.player.position.y, snapshot.player.position.z);
+      if (this.arena.repositionSafely) this.arena.repositionSafely(this.player, this.player.position, this.player.radius);
+      else this.arena.resolvePosition(this.player.position, this.player.radius);
+      this.camera.yaw = snapshot.player.yaw;
+      this.player.unlockedWeapons = new Set(snapshot.player.unlockedWeapons);
+      Object.assign(this.player.modifiers, snapshot.player.modifiers);
+      this.player.upgradeStacks = { ...snapshot.player.upgradeStacks };
+      this.weapons.reset(this.save.data.meta || {});
+      this.weapons.states = {};
+      for (const id of snapshot.player.unlockedWeapons) {
+        const state = this.weapons.ensureWeapon(id);
+        const savedState = snapshot.weapons.states[id];
+        state.maxReserve = Math.round(savedState.maxReserve);
+        state.reserve = Math.round(clamp(savedState.reserve, 0, state.maxReserve));
+        state.mag = Math.round(clamp(savedState.mag, 0, this.weapons.magazineSize(id)));
+      }
+      this.weapons.currentId = snapshot.weapons.currentId;
+      this.state = 'playing';
+      this.previousState = 'playing';
+      this.ui.enterGame();
+      this._beginIntermission(15);
+      this.ui.announce('CHECKPOINT RESTAURÉ', 'OFFICE ' + String(snapshot.nextWave).padStart(2,'0'), this.difficulty.name, 2.6);
+      this.input.requestLock();
+      return true;
     }
 
     _buildWaveQueue() {
@@ -500,17 +1078,23 @@
       const bossEntry = queue.shift();
       shuffle(queue);
       if (bossEntry) queue.unshift(bossEntry);
+      if (this.waveObjective?.type === 'hunt') {
+        const markedCount = Math.min(queue.length, this.waveObjective.target);
+        for (let index = 0; index < markedCount; index++) queue[index].marked = true;
+        this.waveObjective.target = markedCount;
+        this.waveObjective.remaining = markedCount;
+      }
       return queue;
     }
 
     _updateWaveDirector(dt) {
       if (this.waveActive) {
         this.spawnTimer -= dt;
-        const cap = Math.min(46, 24 + Math.floor(this.wave * 1.35));
+        const cap = this._enemyCap();
         if (this.spawnQueue.length && this.spawnTimer <= 0 && this.enemies.length < cap) {
           const entry = this.spawnQueue.shift();
           this.spawnsRemaining = this.spawnQueue.length;
-          this.spawnEnemy(entry.type, null, { elite:entry.elite, instant:false });
+          this.spawnEnemy(entry.type, null, { elite:entry.elite, instant:false, marked:entry.marked });
           const pressure = clamp(this.enemies.length / cap, 0, 1);
           this.spawnTimer = (entry.boss ? 1.35 : randRange(.28,.72)) * lerp(.8,1.25,pressure);
         }
@@ -530,7 +1114,7 @@
             }
           }
         }
-        if (!this.spawnQueue.length && !this.enemies.some(enemy => enemy.alive)) this._completeWave();
+        if (this._canCompleteWave()) this._completeWave();
       } else if (this.pendingUpgrade) {
         this.waveCompleteTimer -= dt;
         if (this.waveCompleteTimer <= 0) this._presentUpgrades();
@@ -616,7 +1200,7 @@
       this.ui.announce('MUTATION ACCEPTÉE', upgrade.name.toUpperCase(), upgrade.description, 2.1);
       this.state = 'playing';
       this.currentModifier = D.WAVE_MODIFIERS[0];
-      this.startNextWave();
+      this._beginIntermission();
       this.input.requestLock();
     }
 
@@ -641,6 +1225,15 @@
         gravity:-.2
       });
       return enemy;
+    }
+
+    spawnBossAdd(type, owner = null, options = {}) {
+      const alive = this.enemies.filter(enemy => enemy.alive);
+      const bossAdds = alive.filter(enemy => enemy.summonedByBoss).length;
+      const phase = owner?.bossPhase || 1;
+      const quota = Math.min(12, 5 + phase * 2);
+      if (alive.length >= this._enemyCap() || bossAdds >= quota) return null;
+      return this.spawnEnemy(type, null, { ...options, summonedByBoss:true, instant:false });
     }
 
     spawnEnemyProjectile(owner, type, target, speed, damage) {
@@ -685,7 +1278,13 @@
         if (distance > radius + enemy.radius) continue;
         const t = clamp(distance / radius, 0, 1);
         const minimum = options.falloff ?? .35;
-        const amount = damage * lerp(1, minimum, t);
+        let amount = damage * lerp(1, minimum, t);
+        if (!options.ignoreCover) {
+          const target = new Vec3(enemy.position.x, enemy.config.flying ? enemy.position.y : enemy.height * .55, enemy.position.z);
+          const source = new Vec3(position.x, Math.max(.2, position.y), position.z);
+          if (this.arena.lineBlocked(source, target)) amount *= options.coverMultiplier ?? .2;
+        }
+        if (amount <= .01) continue;
         const direction = enemy.position.clone().sub(position).normalize();
         const result = enemy.takeDamage(amount, {
           zone:'body',
@@ -747,6 +1346,10 @@
         this.arena.triggerGatePulse(2);
         this.spawnAbilityRing(enemy.position, 0xf23645, 14, 1.05);
       }
+      if (enemy.objectiveMarked && this.waveObjective?.type === 'hunt' && this.waveObjective.phase === 'active') {
+        this.waveObjective.remaining = Math.max(0, this.waveObjective.remaining - 1);
+        this._refreshObjectiveText();
+      }
       if (this.player.classId === 'executioner' && close) this.player.addArmor(3);
       const codexKills = this.save.data.codex.enemyKills;
       codexKills[enemy.type] = (codexKills[enemy.type] || 0) + 1;
@@ -768,7 +1371,8 @@
       if (chance(this.player.modifiers.ruptureChance) || chance(this.currentModifier?.volatileDeaths || 0)) {
         this.explode(enemy.position, enemy.boss ? 7 : 4.2, this.player.modifiers.ruptureDamage || 62, { playerOwned:true, source:'rupture', color:0x9a2937 });
       }
-            this.audio.enemy('death', enemy.position, this.player.position, this.camera.yaw);
+      this.audio.enemy('death', enemy.position, this.player.position, this.camera.yaw);
+      if (enemy.boss && this.modeId === 'campaign' && this.wave === 10) this._beginExtraction();
     }
 
     _dropPickup(enemy) {

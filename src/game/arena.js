@@ -21,9 +21,12 @@
       this.hazards = [];
       this.decals = [];
       this.bounds = { minX: -24.7, maxX: 24.7, minZ: -24.7, maxZ: 24.7 };
+      this.currentSectorId = 'sanctum';
+      this.sector = null;
+      this.objectiveZone = null;
       this.gatePulse = 0;
       this.materials = this._createMaterials();
-      this._build();
+      this.setSector('sanctum');
     }
 
     _createMaterials() {
@@ -45,7 +48,10 @@
         glass: new Material({ color:0x536a71, emissive:0x102327, pattern:0, alpha:.23, doubleSided:true, depthWrite:false }),
         blood: new Material({ color:0x4c080d, emissive:0x070001, pattern:2, alpha:.62, doubleSided:true, depthWrite:false }),
         hazard: new Material({ color:0x5c0710, emissive:0xf02030, pattern:3, alpha:.52, doubleSided:true, additive:true, depthWrite:false, pulse:1.2 }),
-        shock: new Material({ color:0x18454b, emissive:0x49e0e8, pattern:3, alpha:.62, doubleSided:true, additive:true, depthWrite:false, pulse:1.4 })
+        shock: new Material({ color:0x18454b, emissive:0x49e0e8, pattern:3, alpha:.62, doubleSided:true, additive:true, depthWrite:false, pulse:1.4 }),
+        objectiveRitual: new Material({ color:0x5c0710, emissive:0xff3945, pattern:3, alpha:.34, doubleSided:true, additive:true, depthWrite:false, pulse:1.1 }),
+        objectiveAmber: new Material({ color:0x5a3b1c, emissive:0xf1a24f, pattern:3, alpha:.34, doubleSided:true, additive:true, depthWrite:false, pulse:1.05 }),
+        objectiveCyan: new Material({ color:0x15494d, emissive:0x60f3ee, pattern:3, alpha:.36, doubleSided:true, additive:true, depthWrite:false, pulse:1.15 })
       };
     }
 
@@ -82,7 +88,153 @@
       return part;
     }
 
-    _build() {
+    setSector(id = 'sanctum') {
+      const sector = D.SECTORS?.[id] || D.SECTORS?.sanctum;
+      if (!sector) throw new Error('Aucun secteur Nexus disponible.');
+
+      // Tous les objets de scène propres au plan sont abandonnés ensemble. Les
+      // meshes et matériaux GPU restent partagés par le renderer.
+      this.staticParts.length = 0;
+      this.dynamicParts.length = 0;
+      this.colliders.length = 0;
+      this.spawnPoints.length = 0;
+      this.stations.length = 0;
+      this.hazards.length = 0;
+      this.decals.length = 0;
+      this.objectiveZone = null;
+      this.gateRingA = this.gateRingB = this.gateRingC = this.portalDisc = null;
+      this.currentSectorId = sector.id;
+      this.sector = sector;
+      this.bounds = { ...sector.bounds };
+      this.gatePulse = 0;
+      this._buildSector(sector);
+
+      if (this.game.player?.position) {
+        this.repositionSafely(this.game.player, sector.startPosition, this.game.player.radius || .42);
+      }
+      return sector;
+    }
+
+    _buildSector(sector) {
+      this._buildSectorFloor(sector);
+      this._buildSectorBoundary(sector);
+
+      for (const item of sector.geometry || []) {
+        const [mesh,material,x,y,z,sx,sy,sz,collider=false,tag='sector'] = item;
+        this._part(mesh,this.materials[material] || this.materials.rust,[x,y,z],[0,0,0],[sx,sy,sz],collider,tag);
+      }
+
+      this._buildSectorGate(sector.gate);
+      for (const [x,z,ring='rust'] of sector.pillars || []) this._buildSectorPillar(x,z,ring);
+      for (const [x,y,z,sx,sy,sz,material='rust'] of sector.cover || []) {
+        this._part('cube',this.materials[material] || this.materials.rust,[x,y,z],[0,0,0],[sx,sy,sz],true,'cover');
+      }
+
+      // Les chaînes reprennent les silhouettes de spawn périphériques : leur
+      // densité et leur position suivent donc réellement chaque plan.
+      (sector.spawns || []).slice(0,14).forEach(([x,z],index)=>{
+        const endY=2.1+(index%5)*.48;
+        const sway=((index%3)-1)*.42;
+        let last=new Vec3(x,10,z);
+        for(let step=1;step<=4;step++){
+          const t=step/4;
+          const next=new Vec3(x+Math.sin(t*Math.PI)*sway,10+(endY-10)*t,z+Math.cos(t*Math.PI)*sway*.3);
+          this._chain(last,next,.035,this.materials.steel);
+          last=next;
+        }
+        this._part('cone8',this.materials.rust,[last.x,last.y-.5,last.z],[0,0,index%2?-.35:.35],[.38,1,.38],false,'hook');
+      });
+
+      this._buildSectorStations(sector.stations || []);
+      this._buildSectorSpawns(sector.spawns || []);
+    }
+
+    _buildSectorFloor(sector) {
+      const floor=sector.floor;
+      const m=this.materials;
+      this._part('cube',m.floor,[0,-.35,0],[0,0,0],[floor.width,.7,floor.depth],false,'floor');
+      const xLimit=Math.floor((floor.width-4)*.5);
+      const zLimit=Math.floor((floor.depth-4)*.5);
+      for(let x=-xLimit;x<=xLimit;x+=floor.grooveStep) {
+        this._part('cube',m.floorAlt,[x,-.025,0],[0,0,0],[.1,.035,floor.depth-4],false,'groove');
+      }
+      for(let z=-zLimit;z<=zLimit;z+=floor.grooveStep) {
+        this._part('cube',m.floorAlt,[0,-.02,z],[0,0,0],[floor.width-4,.04,.1],false,'groove');
+      }
+      for(let x=-xLimit;x<=xLimit;x+=floor.sigilStep) {
+        this._part('cube',m.ritual,[x,.008,0],[0,0,0],[.045,.02,floor.depth-4],false,'sigil');
+      }
+      for(let z=-zLimit;z<=zLimit;z+=floor.sigilStep) {
+        this._part('cube',m.ritual,[0,.009,z],[0,0,0],[floor.width-4,.02,.045],false,'sigil');
+      }
+    }
+
+    _buildSectorBoundary(sector) {
+      const b=sector.bounds,m=this.materials;
+      const width=b.maxX-b.minX+2.6;
+      const depth=b.maxZ-b.minZ+2.6;
+      const centerX=(b.minX+b.maxX)*.5;
+      const centerZ=(b.minZ+b.maxZ)*.5;
+      this._part('cube',m.wall,[centerX,3,b.minZ-.8],[0,0,0],[width,7,1.4],true,'outer-wall');
+      this._part('cube',m.wall,[centerX,3,b.maxZ+.8],[0,0,0],[width,7,1.4],true,'outer-wall');
+      this._part('cube',m.wall,[b.minX-.8,3,centerZ],[0,0,0],[1.4,7,depth],true,'outer-wall');
+      this._part('cube',m.wall,[b.maxX+.8,3,centerZ],[0,0,0],[1.4,7,depth],true,'outer-wall');
+      for(let x=Math.ceil((b.minX+4)/8)*8;x<=b.maxX-4;x+=8){
+        this._part('cube',m.wallDark,[x,3.6,b.minZ+.1],[0,0,0],[1.2,8.5,2.2],true,'buttress');
+        this._part('cube',m.wallDark,[x,3.6,b.maxZ-.1],[0,0,0],[1.2,8.5,2.2],true,'buttress');
+      }
+      for(let z=Math.ceil((b.minZ+4)/8)*8;z<=b.maxZ-4;z+=8){
+        this._part('cube',m.wallDark,[b.minX+.1,3.6,z],[0,0,0],[2.2,8.5,1.2],true,'buttress');
+        this._part('cube',m.wallDark,[b.maxX-.1,3.6,z],[0,0,0],[2.2,8.5,1.2],true,'buttress');
+      }
+    }
+
+    _buildSectorGate(gate) {
+      if(!gate) return;
+      const [x,y,z]=gate.position;
+      this.gateRingA=this._dynamic('torus',this.materials.rust,[x,y,z],[Math.PI/2,0,0],[gate.outer,gate.outer,gate.outer],(part,time)=>{part.transform.rotation.z=time*.10;});
+      this.gateRingB=this._dynamic('torusLow',this.materials.ritual,[x,y,z+.08],[Math.PI/2,0,0],[gate.middle,gate.middle,gate.middle],(part,time)=>{part.transform.rotation.z=-time*.18;});
+      this.gateRingC=this._dynamic('torusLow',this.materials.ritualBright,[x,y,z+.16],[Math.PI/2,0,0],[gate.inner,gate.inner,gate.inner],(part,time)=>{part.transform.rotation.z=time*.27;});
+      this.portalDisc=this._dynamic('cylinder12',this.materials.portal,[x,y,z+.22],[Math.PI/2,0,0],[gate.disc,.035,gate.disc],(part,time)=>{
+        part.transform.rotation.y=time*.2;
+        const pulse=1+Math.sin(time*1.3)*.025+this.gatePulse*.08;
+        part.transform.scale.set(gate.disc*pulse,.035,gate.disc*pulse);
+      });
+    }
+
+    _buildSectorPillar(x,z,ringMaterial) {
+      const m=this.materials;
+      this._part('cylinder8',m.wallDark,[x,2,z],[0,0,0],[2.2,4,2.2],true,'pillar');
+      this._part('torusLow',m[ringMaterial] || m.rust,[x,3.4,z],[0,0,0],[2.6,2.6,2.6],false,'pillar-ring');
+      for(let spike=0;spike<4;spike++){
+        const angle=spike*Math.PI/2+.4;
+        this._part('cone6',m.bone,[x+Math.cos(angle)*1.15,4.3,z+Math.sin(angle)*1.15],[Math.PI,0,-angle],[.38,1.45,.38],false,'spike');
+      }
+    }
+
+    _buildSectorStations(defs) {
+      defs.forEach((row,index)=>{
+        const [id,type,x,z,materialName,weapon] = row;
+        const station={
+          id,type,weapon,
+          position:new Vec3(x,0,z),
+          material:this.materials[materialName] || this.materials.ritual,
+          cost:type==='armory'?D.WEAPONS[weapon].price:D.STATIONS[type].cost,
+          unlockWave:type==='armory'?D.WEAPONS[weapon].unlockWave:1,
+          cooldown:0,active:true
+        };
+        station.transform=new Transform(station.position.clone().add(new Vec3(0,.52,0)),new Vec3(0,index*.9,0),new Vec3(1.4,1.05,1.4));
+        station.ringTransform=new Transform(station.position.clone().add(new Vec3(0,1.35,0)),new Vec3(0,0,0),new Vec3(1.75,1.75,1.75));
+        this.stations.push(station);
+        this._part('cylinder8',this.materials.wallDark,[x,.25,z],[0,0,0],[2.1,.5,2.1],true,'station');
+      });
+    }
+
+    _buildSectorSpawns(points) {
+      points.forEach(([x,z],index)=>this.spawnPoints.push({position:new Vec3(x,0,z),index,cooldown:0}));
+    }
+
+    _buildLegacySanctum() {
       const m = this.materials;
       // Sol principal et rainures.
       this._part('cube',m.floor,[0,-.35,0],[0,0,0],[52,.7,52],false,'floor');
@@ -213,9 +365,82 @@
       points.forEach(([x,z],index)=>this.spawnPoints.push({ position:new Vec3(x,0,z), index, cooldown:0 }));
     }
 
+    getStartPosition() {
+      const source=this.sector?.startPosition || [0,0,0];
+      return new Vec3(source[0],source[1] || 0,source[2]);
+    }
+
+    setObjectiveZone(config = null) {
+      if(!config){
+        this.objectiveZone=null;
+        return null;
+      }
+      const type=config.type==='extraction'?'extraction':'hold';
+      const source=config.position || this.sector?.objectiveAnchors?.[type] || this.sector?.startPosition || [0,0,0];
+      const position=source instanceof Vec3
+        ? source.clone()
+        : Array.isArray(source)
+          ? new Vec3(source[0],source[1] || 0,source[2])
+          : new Vec3(source.x || 0,source.y || 0,source.z || 0);
+      const accent=['ritual','amber','cyan'].includes(config.accent)
+        ? config.accent
+        : this.sector?.objectiveAccent || (type==='extraction'?'cyan':'ritual');
+      this.objectiveZone={
+        ...config,
+        type,
+        position,
+        accent,
+        radius:clamp(Number(config.radius) || (type==='extraction'?4.5:5),1.5,12)
+      };
+      return this.objectiveZone;
+    }
+
+    _positionClear(position,radius) {
+      if(position.x<this.bounds.minX+radius || position.x>this.bounds.maxX-radius ||
+        position.z<this.bounds.minZ+radius || position.z>this.bounds.maxZ-radius) return false;
+      for(const collider of this.colliders){
+        if(collider.tag==='dais') continue;
+        const closestX=clamp(position.x,collider.min.x,collider.max.x);
+        const closestZ=clamp(position.z,collider.min.z,collider.max.z);
+        const dx=position.x-closestX,dz=position.z-closestZ;
+        if(dx*dx+dz*dz<radius*radius) return false;
+      }
+      return true;
+    }
+
+    findSafePosition(preferred = null,radius = .42) {
+      const source=preferred || this.sector?.startPosition || [0,0,0];
+      const origin=source instanceof Vec3
+        ? source.clone()
+        : Array.isArray(source)
+          ? new Vec3(source[0],source[1] || 0,source[2])
+          : new Vec3(source.x || 0,source.y || 0,source.z || 0);
+      if(this._positionClear(origin,radius)) return origin;
+      for(let distance=1.5;distance<=16;distance+=1.5){
+        for(let step=0;step<16;step++){
+          const angle=step/16*Math.PI*2;
+          const candidate=new Vec3(origin.x+Math.cos(angle)*distance,origin.y,origin.z+Math.sin(angle)*distance);
+          if(this._positionClear(candidate,radius)) return candidate;
+        }
+      }
+      const fallback=this.getStartPosition();
+      this.resolvePosition(fallback,radius);
+      return fallback;
+    }
+
+    repositionSafely(target,preferred = null,radius = .42) {
+      const position=target?.position || target;
+      if(!position) return null;
+      const safe=this.findSafePosition(preferred || position,radius);
+      if(typeof position.set==='function') position.set(safe.x,safe.y,safe.z);
+      else { position.x=safe.x; position.y=safe.y; position.z=safe.z; }
+      return safe;
+    }
+
     reset() {
       this.hazards.length=0;
       this.decals.length=0;
+      this.setObjectiveZone(null);
       this.stations.forEach(station=>{ station.cooldown=0; station.active=true; });
       this.gatePulse=0;
     }
@@ -252,6 +477,7 @@
         r.draw(this.meshes.torusLow,station.ringTransform.matrix,material);
       }
       for(const decal of this.decals) r.draw(this.meshes.plane,decal.matrix,decal.material);
+      this._drawObjectiveZone(time);
       this._drawHazards(time);
     }
 
@@ -359,6 +585,61 @@
       if(station.type==='armory') return { title:`DÉVERROUILLER ${D.WEAPONS[station.weapon].name}`, cost:`◆ ${station.cost}` };
       const def=D.STATIONS[station.type];
       return { title:def.name, cost:`◆ ${station.cost}` };
+    }
+
+    _drawObjectiveZone(time) {
+      const zone=this.objectiveZone;
+      if(!zone) return;
+      const r=this.renderer;
+      const material={
+        ritual:this.materials.objectiveRitual,
+        amber:this.materials.objectiveAmber,
+        cyan:this.materials.objectiveCyan
+      }[zone.accent] || this.materials.objectiveRitual;
+      const pulse=1+Math.sin(time*3.6)*.055;
+      const ground=new Transform(
+        new Vec3(zone.position.x,.026,zone.position.z),
+        new Vec3(0,time*(zone.type==='extraction'?.22:-.16),0),
+        new Vec3(zone.radius*2*pulse,1,zone.radius*2*pulse)
+      );
+      ground.updateMatrix();
+      r.draw(this.meshes.plane,ground.matrix,material);
+
+      const outer=new Transform(
+        new Vec3(zone.position.x,.075,zone.position.z),
+        new Vec3(0,time*(zone.type==='extraction'?.7:.35),0),
+        new Vec3(zone.radius*2.05,zone.radius*2.05,zone.radius*2.05)
+      );
+      outer.updateMatrix();
+      r.draw(this.meshes.torusLow,outer.matrix,material);
+
+      if(zone.type==='hold'){
+        for(let index=0;index<4;index++){
+          const angle=time*.16+index*Math.PI/2;
+          const marker=new Transform(
+            new Vec3(zone.position.x+Math.cos(angle)*zone.radius*.84,.8,zone.position.z+Math.sin(angle)*zone.radius*.84),
+            new Vec3(0,-angle,0),
+            new Vec3(.16,1.6+Math.sin(time*2+index)*.18,.16)
+          );
+          marker.updateMatrix();
+          r.draw(this.meshes.cylinder6,marker.matrix,material);
+        }
+      }else{
+        const beam=new Transform(
+          new Vec3(zone.position.x,2.1,zone.position.z),
+          new Vec3(0,time*.24,0),
+          new Vec3(zone.radius*.72,4.2,zone.radius*.72)
+        );
+        beam.updateMatrix();
+        r.draw(this.meshes.cylinder12,beam.matrix,material);
+        const crown=new Transform(
+          new Vec3(zone.position.x,4.25,zone.position.z),
+          new Vec3(0,-time*.9,0),
+          new Vec3(zone.radius*1.25,zone.radius*1.25,zone.radius*1.25)
+        );
+        crown.updateMatrix();
+        r.draw(this.meshes.torusLow,crown.matrix,material);
+      }
     }
 
     scheduleChainStrike(position) {

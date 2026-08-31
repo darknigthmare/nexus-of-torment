@@ -1,169 +1,152 @@
-# Rapport QA — build 1.1.0 « Liturgie nerveuse »
+# Rapport QA — build 1.2.0 « Liturgie nerveuse »
 
-**Date de validation :** 11 août 2026  
-**Cible navigateur :** Chromium 144  
-**API graphique :** WebGL 2.0 / OpenGL ES 3.0 Chromium  
-**Résolution :** 1280 × 720
+**Date de validation :** 31 août 2026
+**Navigateur réel :** Google Chrome, piloté par Playwright Core
+**API graphique :** WebGL 2 via ANGLE Direct3D 11
+**Desktop :** 1280 × 720
+**Mobile tactile émulé dans Chrome :** 390 × 844
 
 ## Résultat global
 
-**VALIDÉ** — les nouveaux contenus sont intégrés au code réel, les mécaniques déterministes passent, le serveur local répond correctement et le scénario Chromium s’exécute sans exception JavaScript détectée.
+**VALIDÉ LOCALEMENT** — `npm run qa:release` passe intégralement : audit statique **77/77**, runtime **72/72**, HTTP **5/5**, build statique réussie, Chrome **35/35**, puis audit de release **83/83**. Aucune erreur inattendue ne reste après le filtrage documenté ci-dessous.
 
-## 1. Suite automatisée locale
+La preuve structurée active est `docs/QA_BROWSER_1.2.json`. Les preuves 1.1 restent historiques et ne constituent plus la gate de release.
 
-Commande :
+## 1. Pipeline automatisé
+
+Commande finale :
 
 ```bash
-npm test
+npm run qa:release
 ```
 
-La commande enchaîne quatre niveaux de contrôle.
+Elle enchaîne :
 
-### Vérification syntaxique
+1. vérification syntaxique des dix scripts ;
+2. audit du contenu, des inventaires et des contrats UI/PWA, indépendant des anciennes preuves ;
+3. 72 tests déterministes du runtime ;
+4. 5 tests du serveur HTTP ;
+5. génération de `dist` ;
+6. 35 contrôles dans une instance réelle de Google Chrome ;
+7. audit de release de la preuve locale fraîche : version, parcours critiques, captures, erreurs et performance native matérielle.
 
-Les dix scripts du moteur et du jeu sont compilés avec `vm.Script` :
+### Audit statique — 77/77 ; audit de release — 83/83
 
-- `src/core/math.js`
-- `src/core/engine.js`
-- `src/core/audio.js`
-- `src/game/data.js`
-- `src/game/arena.js`
-- `src/game/entities.js`
-- `src/game/weapons.js`
-- `src/game/ui.js`
-- `src/game/game.js`
-- `src/main.js`
+L’audit vérifie notamment :
 
-### Audit de structure
-
-L’audit contrôle :
-
-- présence et taille des fichiers requis ;
+- présence des fichiers et des captures de release 1.2 ;
 - alignement des versions ;
-- résolution des ressources HTML ;
-- absence de scripts ou styles distants ;
-- unicité des identifiants HTML ;
-- inventaires de classes, armes, castes, vagues, greffes, difficultés et stations ;
-- slots d’armes uniques ;
-- présence de deux boss ;
-- compatibilité des castes standards avec le directeur ;
-- présence des mécaniques spéciales des armes rituelles ;
-- documentation des commandes 1–6 et de la mêlée.
+- absence de dépendance d’exécution distante ;
+- unicité des IDs et contrat complet entre HTML et `UIManager` ;
+- manifeste PWA, icône, service worker et cache du cœur statique ;
+- 3 doctrines, 6 armes, 11 castes, 2 boss, 4 difficultés, 7 modificateurs, 20 greffes, 6 améliorations persistantes, 7 stations et 3 secteurs ;
+- contrat de campagne : 3 objectifs standards et 10 vagues ;
+- déclaration du pipeline `qa:release` et preuve Chrome 1.2 réussie.
 
-### Runtime smoke — 23 comportements
+### Runtime — 72/72
 
-Le code réel est chargé dans une VM JavaScript avec des services de rendu simulés. Sont validés :
+Le code réel est chargé dans une VM JavaScript avec des services graphiques simulés. La suite couvre :
 
-| Domaine | Contrôles principaux |
-|---|---|
-| Arène | 7 stations, armurerie Vesper, armurerie Sanctificateur |
-| Directeur | Gardien vague 5, Archidiacre vague 10, types résolus |
-| Écorché | réduction frontale exacte et vulnérabilité arrière |
-| Vesper | tir, dégâts, traction, slow et arc de chaîne |
-| Sanctificateur | tir, brûlure, DPS persistant |
-| Mêlée | action, dégâts et étourdissement |
-| Archidiacre | hitbox tête, projectile, zones, Souillure, slow, transition phase 3 et renforts |
-| Viewmodels | assemblage des deux nouvelles armes et traceurs |
+- sept stations physiques, armureries Vesper et Sanctificateur ;
+- tir des deux armes rituelles, attraction, entrave, brûlure, mêlée et blindage frontal de l’Écorché ;
+- hitbox, projectiles psychiques, zones, ralentissement et phases de l’Archidiacre ;
+- enchaînement purge → greffe → préparation → maintien → chasse dans les quatre difficultés ;
+- maintien hors du sceau, purge des survivants et chasse avec renfort marqué anti-blocage ;
+- Gardien du Seuil à la vague 5 et Archidiacre des Nerfs à la vague 10 ;
+- plafond des renforts de boss, invulnérabilité d’apparition et remise en position ;
+- intermission manuelle/automatique, délais anti-clic et impossibilité de sauter une vague ;
+- checkpoint borné, reprise en position sûre dans la Nef, extraction, victoire et continuation infinie ;
+- récompenses distinctes de mort/victoire/abandon, conservation des records et finalisation unique sans double paiement.
 
-### HTTP smoke — 5 comportements
+Les éliminations des scénarios de progression sont injectées via les méthodes réelles de dégâts. Ces tests ne démontrent ni l’équilibrage de parties intégrales, ni toutes les collisions/grenades, ni les performances graphiques.
 
-Un serveur temporaire est démarré sur un port libre puis arrêté automatiquement.
+### HTTP — 5/5
 
 - page principale servie en HTML ;
-- scripts servis avec le bon type MIME ;
+- scripts avec le type MIME attendu ;
 - CSS servi correctement ;
-- ressource absente renvoyée en 404 ;
-- tentative de traversée de répertoire bloquée.
+- ressource absente en 404 ;
+- traversée de répertoire bloquée.
 
-## 2. Parcours Chromium 1.1
+## 2. Parcours Google Chrome — 35/35
 
-La politique administrateur du Chromium de l’environnement bloque toute navigation HTTP et `file://`. Pour ne pas confondre cette restriction avec un défaut du jeu, la validation est séparée en deux parties :
+Le runner sert l’artefact `dist`, lance Chrome headless avec le GPU matériel, exerce les interfaces visibles et inspecte l’état réel du moteur WebGL 2. Les menus, réglages, reprise, nouvelle tentative et entrées tactiles passent par l’UI. Les scénarios de boss, checkpoint, mort et victoire utilisent aussi des fixtures runtime pour atteindre ces états : ce ne sont pas des campagnes intégrales jouées sans assistance. La capture du pointeur ou son écran de reprise est vérifié ; le runner force ensuite le drapeau d’entrée pour les scénarios desktop automatisés.
 
-1. `http-smoke.mjs` vérifie le vrai serveur et ses fichiers.
-2. Les contenus exacts de `index.html`, `styles.css` et des dix scripts sont injectés dans un document Chromium vierge autorisé, puis exécutés dans le moteur réel du navigateur.
+### Desktop
 
-Cette méthode utilise le vrai DOM, le vrai WebGL 2, les shaders, les buffers, la boucle `requestAnimationFrame`, le HUD et le rendu du jeu. Le verrouillage réel du pointeur n’est pas demandé par le harness injecté ; l’état d’entrée est activé directement pour les tirs de contrôle.
-
-### État du menu
-
-| Test | Résultat |
+| Parcours | Résultat vérifié |
 |---|---|
-| Création du jeu | Réussi |
-| Contexte WebGL 2 | Réussi |
-| Écran de fallback masqué | Réussi |
-| Menu principal visible | Réussi |
-| 6 armes chargées | Réussi |
-| 11 castes chargées | Réussi |
-| 7 stations construites | Réussi |
+| Boot | HTTP 200, WebGL 2 actif, fallback masqué |
+| Menu | 3 classes, 4 difficultés, 2 modes, 3 secteurs |
+| Accessibilité | mouvement réduit, contrastes, sous-titres et focus appliqués |
+| Déploiement UI | campagne, Nef des Sutures, difficulté Liturgie rouge |
+| Entrée | verrouillage du pointeur ou reprise explicite |
+| Difficultés | santé et dégâts croissants sur les quatre niveaux |
+| Secteurs | trois espaces instanciés avec départs distincts |
+| Boss | Gardien vague 5, Archidiacre vague 10 |
+| Sauvegarde | checkpoint écrit, bouton de reprise après rechargement, état restauré |
+| Mort | écran de résultats puis nouvelle tentative |
+| Victoire | boss final, extraction, résultat et nettoyage de la sauvegarde active |
+| Continuation | passage propre de la victoire à la survie sans fin |
 
-### Scénario fonctionnel
+### Mobile tactile
 
-| Test | Mesure |
+Le parcours 390 × 844 vérifie :
+
+- menu sans débordement horizontal ;
+- démarrage par l’UI en mode infini, difficulté Nexus ouvert, Ossuaire des Crochets ;
+- commandes tactiles visibles ;
+- cible FEU d’au moins 44 px et tir transmis au système d’arme ;
+- stick de déplacement opérationnel ;
+- pause tactile ;
+- capture du combat.
+
+### PWA et vraie coupure réseau
+
+La suite attend le service worker, confirme son contrôle et le cache `nexus-of-torment-v1.2.0`, coupe réellement le serveur local, puis recharge le jeu. Le menu redémarre hors ligne avec WebGL 2 actif. Une ressource non mise en cache reçoit le fallback contrôlé **503** « hors ligne ».
+
+### Console
+
+Après exclusion des restrictions attendues liées à l’activation utilisateur de l’audio ou du verrouillage du pointeur, aucune erreur console, `pageerror`, erreur mobile ou requête réseau inattendue n’est enregistrée.
+
+## 3. Mesures du scénario desktop
+
+| Mesure | Valeur |
 |---|---:|
-| Vesper — dégâts | 134,64 |
-| Vesper — attraction | environ 0,91 unité |
-| Vesper — entrave | 1,65 seconde |
-| Sanctificateur — brûlure | 2,25 secondes |
-| Sanctificateur — DPS de brûlure | 35,2 |
-| Coup de crosse — dégâts | 67 |
-| Coup de crosse — stun | 0,62 seconde |
-| Boss de vague 5 | Gardien du Seuil |
-| Boss de vague 10 | Archidiacre des Nerfs |
-| Pièces du modèle Archidiacre | 22 |
+| Médiane | 60 FPS |
+| Échantillons | 60 / 60 / 60 FPS |
+| Appels de dessin | 284 |
+| Triangles | 8 800 |
+| Viewport | 1280 × 720 |
+| GPU exposé | AMD Radeon RX 6800 XT |
+| Backend | ANGLE Direct3D 11 |
 
-### État de rendu final
+Ces valeurs décrivent ce run de QA précis ; elles ne constituent pas une promesse universelle pour d’autres appareils.
 
-- état de jeu : `playing` ;
-- barre de boss visible ;
-- HUD de l’arme : `SANCTIFICATEUR` ;
-- trois entités actives ;
-- 376 appels de dessin ;
-- 12 146 triangles ;
-- canvas 1280 × 720 ;
-- fallback WebGL masqué ;
-- **aucune exception ou erreur console**.
-
-Le résultat structuré est conservé dans `docs/QA_BROWSER_1.1.json`.
-
-## 3. Défaut découvert pendant la passe
-
-Le premier test de hitbox a révélé que la grande sphère corporelle de l’Archidiacre interceptait certains tirs dirigés vers sa tête. La build a été corrigée en :
-
-- alignant les offsets sur le modèle suspendu ;
-- ajoutant une priorité de tête limitée lorsque les deux sphères se chevauchent ;
-- ajoutant un test de non-régression dédié.
+La porte de publication exige une médiane ≥30 FPS, chaque échantillon ≥24 FPS, une échelle de rendu de 1 et un buffer 1280 × 720 sur renderer matériel. La CI GitHub exécute les parcours fonctionnels avec seuils adaptés à son renderer logiciel ; elle ne remplace pas cette mesure locale.
 
 ## 4. Captures produites
 
-- `screenshots/menu-1.1.png`
-- `screenshots/gameplay-1.1.png`
+- `docs/screenshots/v1.2-desktop-menu.png`
+- `docs/screenshots/v1.2-desktop-gameplay.png`
+- `docs/screenshots/v1.2-mobile-gameplay.png`
 
-Les anciennes captures 1.0 sont conservées à titre de comparaison.
+## 5. Périmètre restant
 
-## 5. Périmètre et limites connues
+La release couvre le solo desktop/mobile, la campagne, le mode infini, trois secteurs, la sauvegarde locale, l’accessibilité et le hors-ligne. Elle ne comprend pas le multijoueur réseau, la manette native, la sauvegarde cloud, le matchmaking, un backend ou une boutique en ligne. Le tactile est vérifié en émulation Chrome, pas sur un téléphone physique ou Safari. L’équilibrage ressenti sur de longues sessions reste distinct des contrats automatisés vérifiés ici.
 
-Cette build cible le solo clavier/souris sur navigateur de bureau. Elle ne comprend pas :
-
-- multijoueur réseau ;
-- support manette natif ;
-- exécutable Unreal Engine ou Steam ;
-- plusieurs arènes ;
-- campagne scénarisée ;
-- sauvegarde cloud.
-
-Le rendu est volontairement procédural et facetté afin de rester autonome, léger et entièrement modifiable sans pipeline d’assets externe.
+Les vérifications d’URL de production écrivent dans `.qa/production/`, sans remplacer cette preuve locale. Ce rapport ne présume pas le résultat d’un déploiement futur.
 
 ## 6. Checklist de régression
 
 Après toute modification majeure :
 
-1. lancer `npm test` ;
-2. lancer le jeu par `start-game.bat` ;
-3. vérifier le verrouillage du pointeur ;
-4. tester ZQSD et WASD ;
-5. tirer avec les six armes ;
-6. tester `V`, `G`, `Q` et `E` ;
-7. vider une vague et choisir une greffe ;
-8. atteindre ou forcer les vagues 5 et 10 ;
-9. vérifier la sauvegarde après rechargement ;
-10. tester les qualités 70 %, 100 % et 135 %.
+1. lancer `npm run qa:release` ;
+2. vérifier que les quatre sous-suites locales et Chrome restent sans échec ;
+3. contrôler les trois captures de release ;
+4. jouer au moins une vague de chaque objectif ;
+5. vérifier les boss 5/10, la mort/reprise et l’extraction ;
+6. tester desktop et mobile tactile ;
+7. confirmer le redémarrage PWA après coupure réelle du serveur ;
+8. régénérer `MANIFEST.sha256` avec `npm run manifest`, puis exécuter `npm run manifest:check` ;
+9. après publication, contrôler HTTP et relancer `npm run qa:browser -- https://nexus-of-torment.vercel.app/`.

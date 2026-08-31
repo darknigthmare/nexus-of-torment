@@ -672,19 +672,37 @@
       this.mouseButtons = new Set();
       this.mousePressed = new Set();
       this.mouseReleased = new Set();
+      this.virtualKeys = new Set();
+      this.virtualPressed = new Set();
+      this.virtualMouseButtons = new Set();
+      this.virtualMousePressed = new Set();
       this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0;
       this.pointerLocked = false;
+      this.lockRequestPending = false;
+      this.touchCapable = Boolean(
+        (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+        window.matchMedia?.('(any-pointer: coarse)').matches
+      );
+      const primaryPointerIsCoarse = Boolean(window.matchMedia?.('(pointer: coarse)').matches);
+      const primaryPointerIsFine = Boolean(window.matchMedia?.('(pointer: fine)').matches);
+      this.touchMode = this.touchCapable && primaryPointerIsCoarse && !primaryPointerIsFine;
       this.enabled = true;
       this.onLockChange = null;
       this._bind();
+      this._bindTouchControls();
     }
     _bind() {
       window.addEventListener('keydown', event => {
+        if (this._isFormControl(event.target)) return;
         if (!this.keys.has(event.code)) this.pressed.add(event.code);
         this.keys.add(event.code);
         if (this.enabled && ['Space','KeyW','KeyA','KeyS','KeyD','KeyZ','KeyQ','KeyV','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.code)) event.preventDefault();
       }, { passive: false });
-      window.addEventListener('keyup', event => { this.keys.delete(event.code); this.released.add(event.code); });
+      window.addEventListener('keyup', event => {
+        if (this._isFormControl(event.target)) return;
+        this.keys.delete(event.code);
+        this.released.add(event.code);
+      });
       window.addEventListener('mousedown', event => {
         if (!this.mouseButtons.has(event.button)) this.mousePressed.add(event.button);
         this.mouseButtons.add(event.button);
@@ -694,22 +712,230 @@
         if (this.pointerLocked && this.enabled) { this.mouseDX += event.movementX || 0; this.mouseDY += event.movementY || 0; }
       });
       window.addEventListener('wheel', event => { this.wheel += Math.sign(event.deltaY); }, { passive: true });
-      window.addEventListener('blur', () => { this.keys.clear(); this.mouseButtons.clear(); });
+      window.addEventListener('blur', () => {
+        this.keys.clear();
+        this.mouseButtons.clear();
+        this.clearVirtualInputs();
+      });
       document.addEventListener('pointerlockchange', () => {
         this.pointerLocked = document.pointerLockElement === this.canvas;
+        this.lockRequestPending = false;
+        document.dispatchEvent(new CustomEvent('nt-pointer-lock-change', { detail: { locked: this.pointerLocked } }));
         if (this.onLockChange) this.onLockChange(this.pointerLocked);
       });
+      document.addEventListener('pointerlockerror', () => {
+        this.lockRequestPending = false;
+        document.dispatchEvent(new CustomEvent('nt-pointer-lock-error'));
+      });
       this.canvas.addEventListener('contextmenu', event => event.preventDefault());
+      window.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+          this._activateTouchMode();
+          return;
+        }
+        if (event.pointerType === 'mouse') {
+          const changed = this._activateMouseMode();
+          if (changed && event.target === this.canvas && this.enabled && !this.pointerLocked) this.requestLock();
+        }
+      }, { capture: true });
     }
-    requestLock() { if (this.canvas.requestPointerLock) this.canvas.requestPointerLock(); }
-    exitLock() { if (document.exitPointerLock) document.exitPointerLock(); }
-    key(code) { return this.keys.has(code); }
-    keyAny(...codes) { return codes.some(code => this.keys.has(code)); }
-    consume(code) { const result = this.pressed.has(code); this.pressed.delete(code); return result; }
-    mouse(button) { return this.mouseButtons.has(button); }
-    consumeMouse(button) { const result = this.mousePressed.has(button); this.mousePressed.delete(button); return result; }
+
+    _isFormControl(target) {
+      return Boolean(target?.closest?.('input, select, textarea, button, [contenteditable="true"]'));
+    }
+
+    _setTouchMode(active) {
+      const next = Boolean(active);
+      if (this.touchMode === next) return false;
+      this.touchMode = next;
+      document.body?.classList.toggle('touch-mode', next);
+      if (!next) this.clearVirtualInputs();
+      if (next && document.pointerLockElement) this.exitLock();
+      document.dispatchEvent(new CustomEvent('nt-input-mode-change', { detail: { touchMode: next } }));
+      return true;
+    }
+
+    _activateTouchMode() { return this._setTouchMode(true); }
+    _activateMouseMode() { return this._setTouchMode(false); }
+
+    _bindTouchControls() {
+      const root = document.getElementById('touch-controls');
+      const move = document.getElementById('touch-move');
+      const knob = document.getElementById('touch-move-knob');
+      const look = document.getElementById('touch-look');
+      if (!root || !move || !knob || !look) return;
+
+      let movePointer = null;
+      const resetMove = () => {
+        movePointer = null;
+        knob.style.transform = 'translate(-50%, -50%)';
+        for (const code of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) this.setVirtualKey(code, false);
+      };
+      const updateMove = event => {
+        const rect = move.getBoundingClientRect();
+        const dx = event.clientX - (rect.left + rect.width * .5);
+        const dy = event.clientY - (rect.top + rect.height * .5);
+        const radius = Math.max(28, Math.min(rect.width, rect.height) * .34);
+        const length = Math.hypot(dx, dy) || 1;
+        const scale = Math.min(1, radius / length);
+        const x = dx * scale, y = dy * scale;
+        knob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+        const nx = x / radius, ny = y / radius;
+        this.setVirtualKey('KeyA', nx < -.22);
+        this.setVirtualKey('KeyD', nx > .22);
+        this.setVirtualKey('KeyW', ny < -.22);
+        this.setVirtualKey('KeyS', ny > .22);
+      };
+      move.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'mouse') return;
+        event.preventDefault();
+        this._activateTouchMode();
+        movePointer = event.pointerId;
+        move.setPointerCapture?.(event.pointerId);
+        updateMove(event);
+      });
+      move.addEventListener('pointermove', event => {
+        if (event.pointerId !== movePointer) return;
+        event.preventDefault();
+        updateMove(event);
+      });
+      for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+        move.addEventListener(type, event => {
+          if (movePointer !== null && event.pointerId !== movePointer) return;
+          resetMove();
+        });
+      }
+
+      let lookPointer = null, lookX = 0, lookY = 0;
+      look.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'mouse') return;
+        event.preventDefault();
+        this._activateTouchMode();
+        lookPointer = event.pointerId;
+        lookX = event.clientX;
+        lookY = event.clientY;
+        look.setPointerCapture?.(event.pointerId);
+      });
+      look.addEventListener('pointermove', event => {
+        if (event.pointerId !== lookPointer) return;
+        event.preventDefault();
+        this.addLookDelta((event.clientX - lookX) * 1.15, (event.clientY - lookY) * 1.15);
+        lookX = event.clientX;
+        lookY = event.clientY;
+      });
+      for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+        look.addEventListener(type, event => {
+          if (lookPointer !== null && event.pointerId !== lookPointer) return;
+          lookPointer = null;
+        });
+      }
+
+      root.querySelectorAll('[data-key], [data-mouse], [data-wheel]').forEach(button => {
+        const release = () => {
+          if (button.dataset.key) this.setVirtualKey(button.dataset.key, false);
+          if (button.dataset.mouse !== undefined) this.setVirtualMouse(Number(button.dataset.mouse), false);
+          button.classList.remove('pressed');
+        };
+        button.addEventListener('pointerdown', event => {
+          if (event.pointerType === 'mouse' && !this.touchMode) return;
+          event.preventDefault();
+          this._activateTouchMode();
+          button.setPointerCapture?.(event.pointerId);
+          button.classList.add('pressed');
+          if (button.dataset.key) this.setVirtualKey(button.dataset.key, true);
+          if (button.dataset.mouse !== undefined) this.setVirtualMouse(Number(button.dataset.mouse), true);
+          if (button.dataset.wheel) this.addWheel(Number(button.dataset.wheel));
+        });
+        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, release);
+      });
+    }
+
+    setVirtualKey(code, active) {
+      if (active) {
+        if (!this.virtualKeys.has(code)) this.virtualPressed.add(code);
+        this.virtualKeys.add(code);
+      } else this.virtualKeys.delete(code);
+    }
+
+    setVirtualMouse(button, active) {
+      if (active) {
+        if (!this.virtualMouseButtons.has(button)) this.virtualMousePressed.add(button);
+        this.virtualMouseButtons.add(button);
+      } else this.virtualMouseButtons.delete(button);
+    }
+
+    addLookDelta(dx, dy) {
+      if (!this.enabled) return;
+      this.mouseDX += Number(dx) || 0;
+      this.mouseDY += Number(dy) || 0;
+    }
+
+    addWheel(delta) { this.wheel += Math.sign(Number(delta) || 0); }
+
+    clearVirtualInputs() {
+      this.virtualKeys.clear();
+      this.virtualPressed.clear();
+      this.virtualMouseButtons.clear();
+      this.virtualMousePressed.clear();
+    }
+
+    requestLock() {
+      if (this.touchMode) return Promise.resolve(true);
+      if (!this.canvas.requestPointerLock) {
+        document.dispatchEvent(new CustomEvent('nt-pointer-lock-error'));
+        return Promise.resolve(false);
+      }
+      this.lockRequestPending = true;
+      return new Promise(resolve => {
+        let settled = false;
+        const finish = value => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          document.removeEventListener('pointerlockchange', onChange);
+          document.removeEventListener('pointerlockerror', onError);
+          this.lockRequestPending = false;
+          resolve(value);
+        };
+        const onChange = () => finish(document.pointerLockElement === this.canvas);
+        const onError = () => finish(false);
+        const timeout = setTimeout(() => finish(document.pointerLockElement === this.canvas), 900);
+        document.addEventListener('pointerlockchange', onChange);
+        document.addEventListener('pointerlockerror', onError);
+        try {
+          const result = this.canvas.requestPointerLock();
+          result?.catch?.(() => finish(false));
+        } catch {
+          finish(false);
+          document.dispatchEvent(new CustomEvent('nt-pointer-lock-error'));
+        }
+      });
+    }
+
+    exitLock() {
+      this.lockRequestPending = false;
+      if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock();
+    }
+
+    combatReady() { return this.touchMode || this.pointerLocked; }
+    key(code) { return this.keys.has(code) || this.virtualKeys.has(code); }
+    keyAny(...codes) { return codes.some(code => this.key(code)); }
+    consume(code) {
+      const result = this.pressed.has(code) || this.virtualPressed.has(code);
+      this.pressed.delete(code);
+      this.virtualPressed.delete(code);
+      return result;
+    }
+    mouse(button) { return this.mouseButtons.has(button) || this.virtualMouseButtons.has(button); }
+    consumeMouse(button) {
+      const result = this.mousePressed.has(button) || this.virtualMousePressed.has(button);
+      this.mousePressed.delete(button);
+      this.virtualMousePressed.delete(button);
+      return result;
+    }
     endFrame() {
       this.pressed.clear(); this.released.clear(); this.mousePressed.clear(); this.mouseReleased.clear();
+      this.virtualPressed.clear(); this.virtualMousePressed.clear();
       this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0;
     }
   }

@@ -236,3 +236,159 @@ kbd, .keycap { display: inline-grid; place-items: center; min-width: 25px; min-h
   .weapon-slots { display: none; }
   .credit-lines span { grid-template-columns: 1fr; gap: 2px; }
 }
+/* 1.2 — ergonomie, accessibilité et commandes tactiles */
+:root {
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --hud-scale: 1;
+}
+button, select, input { min-height: 44px; }
+button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid #ffd08c;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(88, 20, 27, .72);
+}
+select:focus-visible { outline: 3px solid #ffd08c; }
+.menu-screen {
+  padding-left: calc(32px + var(--safe-left));
+  padding-right: calc(32px + var(--safe-right));
+}
+.run-config-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 15px 0; }
+.run-config-grid label { display: grid; gap: 6px; min-width: 0; }
+.run-config-grid label > span { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.run-config-grid select { width: 100%; min-width: 0; }
+.continue-button { width: 100%; margin-top: 9px; border-color: rgba(101,183,189,.42); color: #bde9e8; }
+.victory-shell { border-color: rgba(214,154,85,.4); background: radial-gradient(circle at 50% 0%, rgba(214,154,85,.16), transparent 42%), rgba(9,7,8,.94); }
+.victory-shell h2 { color: #e9bc7f; }
+.victory-copy { max-width: 620px; margin: 0 auto 22px; color: #d2c0ba; line-height: 1.6; }
+.victory-actions { flex-wrap: wrap; }
+.pointer-lock-screen { z-index: 80; }
+.pointer-lock-panel { text-align: center; }
+.pointer-lock-panel p { color: var(--muted); line-height: 1.55; }
+
+.hud-top-left { transform: scale(var(--hud-scale)); transform-origin: top left; }
+.hud-top-right { transform: scale(var(--hud-scale)); transform-origin: top right; }
+.hud-bottom-left { transform: scale(var(--hud-scale)); transform-origin: bottom left; }
+.hud-bottom-right { transform: scale(var(--hud-scale)); transform-origin: bottom right; }
+.hud-top-center { transform: translateX(-50%) scale(var(--hud-scale)); transform-origin: top center; }
+.hud-top-left, .hud-bottom-left { margin-left: var(--safe-left); }
+.hud-top-right, .hud-bottom-right { margin-right: var(--safe-right); }
+.hud-kicker, .resource-row label, .ability-widget label, .weapon-state, .grenade-state,
+.essence-block span, .score-block span, .enemy-counter { font-size: max(9px, .58rem); }
+.toast span, .upgrade-rarity, .upgrade-stack, .record span { font-size: max(10px, .62rem); }
+
+.touch-controls { position: fixed; inset: 0; z-index: 42; pointer-events: none; touch-action: none; }
+.touch-look { position: absolute; z-index: 1; top: 0; right: 0; width: 58%; height: 100%; pointer-events: auto; touch-action: none; }
+.touch-stick {
+  position: absolute; z-index: 3; left: calc(22px + var(--safe-left)); bottom: calc(28px + var(--safe-bottom));
+  width: 132px; height: 132px; border: 1px solid rgba(255,255,255,.25); border-radius: 50%;
+  background: radial-gradient(circle, rgba(111,35,43,.2), rgba(5,4,5,.55)); box-shadow: inset 0 0 30px rgba(0,0,0,.5);
+  pointer-events: auto; touch-action: none;
+}
+.touch-stick::before { content: ""; position: absolute; inset: 22%; border: 1px dashed rgba(255,255,255,.18); border-radius: 50%; }
+.touch-stick small { position: absolute; left: 50%; bottom: -20px; transform: translateX(-50%); color: rgba(255,255,255,.55); font-size: 8px; letter-spacing: .14em; }
+.touch-stick-knob {
+  position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; transform: translate(-50%,-50%);
+  border: 2px solid rgba(255,210,181,.56); border-radius: 50%; background: rgba(115,27,36,.7);
+  box-shadow: 0 8px 22px rgba(0,0,0,.55), inset 0 1px rgba(255,255,255,.2);
+}
+.touch-actions { position: absolute; z-index: 4; pointer-events: none; }
+.touch-actions-primary { right: calc(22px + var(--safe-right)); bottom: calc(28px + var(--safe-bottom)); display: flex; align-items: flex-end; gap: 12px; }
+.touch-actions-secondary {
+  right: calc(18px + var(--safe-right)); top: calc(18px + var(--safe-top)); width: min(330px, 48vw);
+  display: grid; grid-template-columns: repeat(4, minmax(48px, 1fr)); gap: 8px;
+}
+.touch-button {
+  min-width: 48px; min-height: 48px; padding: 8px; border: 1px solid rgba(255,255,255,.28); border-radius: 10px;
+  background: rgba(15,10,12,.74); color: #f8e9df; font-size: 10px; font-weight: 900; letter-spacing: .08em;
+  box-shadow: 0 7px 20px rgba(0,0,0,.42); backdrop-filter: blur(7px); pointer-events: auto; touch-action: none;
+}
+.touch-button.pressed { background: rgba(176,49,55,.84); border-color: #ffb19a; transform: scale(.94); }
+.touch-fire { width: 76px; height: 76px; border-radius: 50%; background: rgba(150,31,39,.76); font-size: 13px; }
+.touch-hold:not(.touch-fire) { width: 62px; height: 62px; border-radius: 50%; }
+body.touch-mode #game-canvas, body.touch-mode { touch-action: none; overscroll-behavior: none; }
+body.touch-mode.game-active .hud-bottom-left { bottom: calc(176px + var(--safe-bottom)); }
+body.touch-mode.game-active .hud-bottom-right { bottom: calc(120px + var(--safe-bottom)); }
+
+body.ui-high-contrast {
+  --ink: #fff;
+  --muted: #e0d7d8;
+  --line: rgba(255,255,255,.48);
+  --panel: rgba(2,2,3,.96);
+  --panel-2: rgba(12,8,10,.96);
+}
+body.ui-high-contrast .panel, body.ui-high-contrast .modal-shell,
+body.ui-high-contrast .gameover-shell, body.ui-high-contrast .upgrade-shell { backdrop-filter: none; border-width: 2px; }
+body.enemy-high-contrast #game-canvas { filter: contrast(1.2) brightness(1.08) saturate(1.08); }
+body.subtitles-disabled #subtitle { display: none !important; }
+body.reduced-flashes #damage-flash, body.reduced-flashes #corruption-overlay { opacity: 0 !important; }
+body.reduced-flashes #scanlines { opacity: .025; }
+body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
+  scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important;
+}
+body.reduced-motion #scanlines { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+@media (max-width: 980px) {
+  .run-config-grid { grid-template-columns: 1fr; }
+  .menu-shell { padding-bottom: 8px; }
+  .modal-shell { max-height: calc(100dvh - 24px); }
+}
+@media (max-width: 850px) {
+  .menu-screen { padding-left: calc(16px + var(--safe-left)); padding-right: calc(16px + var(--safe-right)); }
+  .brand-block h1 { font-size: clamp(54px, 15vw, 92px); }
+  .loadout-panel { padding: 18px; }
+  .settings-grid { gap: 13px; }
+}
+@media (max-width: 560px) {
+  .menu-screen { padding-top: calc(18px + var(--safe-top)); }
+  .brand-block h1 { font-size: clamp(48px, 18vw, 76px); }
+  .tagline { font-size: 11px; letter-spacing: .09em; }
+  .panel-title-row { align-items: center; }
+  .result-grid { grid-template-columns: 1fr 1fr; }
+  .gameover-shell, .upgrade-shell { padding: 22px 14px; }
+  .gameover-actions { display: grid; grid-template-columns: 1fr; }
+  .tab-row { overflow-x: auto; padding-bottom: 4px; }
+  .tab { flex: 0 0 auto; min-height: 44px; }
+  .hud-top-left { top: calc(12px + var(--safe-top)); left: calc(10px + var(--safe-left)); }
+  .hud-top-right { top: calc(12px + var(--safe-top)); right: calc(10px + var(--safe-right)); }
+  .hud-bottom-left { left: calc(10px + var(--safe-left)); bottom: calc(12px + var(--safe-bottom)); width: 185px; }
+  .hud-bottom-right { right: calc(10px + var(--safe-right)); bottom: calc(12px + var(--safe-bottom)); }
+  .touch-actions-secondary { top: auto; bottom: calc(126px + var(--safe-bottom)); width: 190px; grid-template-columns: repeat(4, 44px); }
+  .touch-button { min-width: 44px; min-height: 44px; }
+  .touch-stick { width: 112px; height: 112px; }
+  body.touch-mode.game-active .hud-bottom-left { bottom: calc(154px + var(--safe-bottom)); }
+  body.touch-mode.game-active .hud-bottom-right { bottom: calc(112px + var(--safe-bottom)); }
+}
+@media (orientation: portrait) and (pointer: coarse) {
+  .touch-look { top: 20%; width: 62%; height: 55%; }
+  .touch-actions-primary { bottom: calc(24px + var(--safe-bottom)); }
+  .touch-actions-secondary { top: auto; bottom: calc(116px + var(--safe-bottom)); }
+  .hud-top-center { top: calc(92px + var(--safe-top)); width: 76vw; }
+  body.touch-mode.game-active .hud-bottom-left {
+    top: calc(300px + var(--safe-top)); bottom: auto; width: 175px;
+    transform-origin: top left;
+  }
+  body.touch-mode.game-active .hud-bottom-right {
+    top: calc(320px + var(--safe-top)); bottom: auto;
+    transform-origin: top right;
+  }
+  body.touch-mode.game-active .hud-bottom-right .weapon-state,
+  body.touch-mode.game-active .hud-bottom-right .grenade-state { display: none; }
+  body.touch-mode.game-active .subtitle {
+    bottom: calc(252px + var(--safe-bottom)); width: calc(100vw - 28px);
+  }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .touch-stick { width: 106px; height: 106px; bottom: calc(18px + var(--safe-bottom)); }
+  .touch-actions-primary { bottom: calc(18px + var(--safe-bottom)); }
+  .touch-actions-secondary { top: calc(12px + var(--safe-top)); bottom: auto; width: min(340px, 44vw); grid-template-columns: repeat(4, 1fr); }
+  .hud-bottom-left { bottom: calc(8px + var(--safe-bottom)); }
+  .hud-bottom-right { bottom: calc(8px + var(--safe-bottom)); }
+  body.touch-mode.game-active .hud-top-right { top: calc(126px + var(--safe-top)); }
+  body.touch-mode.game-active .hud-bottom-left { bottom: calc(136px + var(--safe-bottom)); }
+  body.touch-mode.game-active .hud-bottom-right { bottom: calc(112px + var(--safe-bottom)); }
+  .upgrade-cards { max-height: 62dvh; }
+}
