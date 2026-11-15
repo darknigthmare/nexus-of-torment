@@ -1,8 +1,14 @@
+50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a  ./.agents/skills/obscura/LICENSE
+2ab71d43ffa87c4d0fa0efcd895258a7319592f4949bf18a2294a9953ad9a065  ./.agents/skills/obscura/SKILL.md
 6feaded4e28ea86e001a6751b4e3d960e8b7c31b9616ff9936b79297086e809b  ./.ai-tools/.gitignore
 518ee93aab27bb8c9ad58478a14ff5db6b24bfbcf0c1346dbd7e5b4fefd0176e  ./.ai-tools/README.md
+c856d14393876f06b04d579a4ea7e34add28522f943ffcf8edca0c105314ed6d  ./.ai-tools/obscura/README.md
+272e03889f6bf42c5c77bb8718f49954d858d839266f7e4f6103d84d92e23368  ./.ai-tools/obscura/source.json
 968ba2b95144071ec237eb1cf1253ea14292bf47255f506ef28083cd737eb2ca  ./.ai-tools/setup.py
 1ec97f618019ad4d9fdc655ae647817d22466c35ade391ff3f5681331f86ccb5  ./.ai-tools/sources.json
 fae354f034e04c63747eff525376fdd6e174e87851e73f6ad2101367c7037b75  ./.ai-tools/tests/test_setup.py
+50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a  ./.claude/skills/obscura/LICENSE
+2ab71d43ffa87c4d0fa0efcd895258a7319592f4949bf18a2294a9953ad9a065  ./.claude/skills/obscura/SKILL.md
 c5f21b8ed1d5f4a3732184fb2d90829e9686423df703c7067d25a110a82f318d  ./.gitattributes
 9549c1ea4c139a30cb66893f82c581b8198fafae04bcac047e9081f968ee3d65  ./.github/workflows/ci.yml
 96af70bd24bf409a66a5e3cc802003bd4e61959f0ab9f469a3b8a606bbad4e0f  ./.gitignore
